@@ -1,10 +1,10 @@
-package dev.seo.takehug;
+package dev.seo.navermarket;
 
 import org.junit.jupiter.api.Test;
 import org.springframework.boot.test.context.SpringBootTest;
 
 @SpringBootTest
-class BackApplicationTests {
+class NaverMarketApplicationTests {
 
 	@Test
 	void contextLoads() {
