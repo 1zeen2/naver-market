@@ -1,4 +1,31 @@
 'use client';
+
+import React, { useState, useCallback, useEffect } from 'react';
+import { useRouter } from 'next/navigation';
+
+// --- 커스텀 훅 임포트 ---
+import { useForm } from '@/hooks/useForm';                 // 폼 데이터 상태 관리 커스텀 훅
+import { useValidation } from '@/hooks/useValidation';     // 폼 유효성 검사 로직 커스텀 훅
+import { useAuthQueries } from '@/hooks/useAuthQueries';   // TanStack Query 기반 인증 API 호출 훅
+
+// --- 타입 임포트 ---
+import { SignupFormData, SignupApiRequest } from '@/types/member'; // 회원가입 폼 데이터 타입 정의
+import { DaumPostcodeData } from '@/types/address'; // Daum Postcode API 데이터 타입 정의
+
+// --- UI 컴포넌트 임포트 ---
+import Input from '@/components/ui/Input';               // 재사용 가능한 Input 컴포넌트
+import Button from '@/components/ui/Button';             // 재사용 가능한 Button 컴포넌트
+import Select from '@/components/ui/Select';             // 재사용 가능한 Select 컴포넌트
+import AddressSearchButton from '@/components/common/AddressSearchButton'; // 주소 검색 버튼 컴포넌트
+
+// 전화번호 앞자리 옵션은 컴포넌트 외부에서 정의하여 불필요한 재생성 방지
+const PHONE_PREFIX_OPTIONS = [
+  { value: '010', label: '010' }, { value: '011', label: '011' }, { value: '012', label: '012' },
+  { value: '013', label: '013' }, { value: '014', label: '014' }, { value: '015', label: '015' },
+  { value: '016', label: '016' }, { value: '017', label: '017' }, { value: '018', label: '018' },
+  { value: '019', label: '019' }
+];
+
 /**
  * @file 회원가입 폼 컴포넌트
  * @description
@@ -16,58 +43,27 @@
  * 🛠️ **설계 원칙 (Design Principles):**
  * - **모듈화 (Modularity):** 핵심 폼 로직을 외부 훅으로 분리하여 SignupForm 컴포넌트의 복잡도를 낮춤.
  * - **관심사 분리 (Separation of Concerns):** UI 렌더링, 폼 데이터 관리, 유효성 검사, API 통신 등 각 기능을 전담하는 훅과 컴포넌트 사용.
- * - **상태 관리 명확성 (Clear State Management):** TanStack Query를 활용하여 비동기 상태(로딩, 에러, 데이터)를 효율적으로 관리하고, 필요한 로컬 상태와 동기화.
- * - **사용자 경험 (User Experience):** 아이디/이메일 중복 확인 메시지 지속성, 실시간 유효성 피드백, 간소화된 주소 검색 제공.
+ * - **상태 관리 명확성 (Clear State Management):** TanStack Query를 활용하여 비동기 상태(로딩, 에러, 데이터), 동기화된 로컬 상태를 효율적으로 관리.
+ * - **사용자 경험 (User Experience):** 실시간 유효성 피드백, 지속적인 중복 확인 메시지, 간소화된 주소 검색 제공.
  *
  * 🔗 **관련 파일/컴포넌트 (Related Files/Components):**
  * - `src/app/signup/page.tsx`: 이 컴포넌트를 렌더링하는 상위 페이지.
- * - `src/hooks/useForm.ts`: 폼 데이터 상태 및 `handleChange` 로직.
+ * - `src/hooks/useForm.ts`: 폼 데이터 상태 및 handleChange 로직.
  * - `src/hooks/useValidation.ts`: 클라이언트 측 폼 유효성 검사 로직.
- * - `src/hooks/useAuthQueries.ts`: TanStack Query 기반의 인증 관련 API 호출 훅.
- * - `src/api/auth.ts`: 실제 인증 API 호출을 위한 순수 함수들. (새롭게 분리됨)
- * - `src/components/common/AddressSearchButton.tsx`: Daum Postcode API 연동 및 주소 검색 버튼 컴포넌트.
+ * - `src/hooks/useAuthQueries.ts`: TanStack Query 기반 인증 관련 API 호출 훅.
+ * - `src/api/auth.ts`: 실제 인증 API 호출을 위한 순수 함수들.
+ * - `src/components/common/AddressSearchButton.tsx`: Daum Postcode API 연동.
  * - `src/components/ui/*.tsx`: 재사용 가능한 UI 컴포넌트 (Input, Select, Button).
  * - `src/types/member.ts`: 회원 관련 데이터 타입 정의.
  * - `src/types/address.d.ts`: Daum Postcode API 관련 타입 정의.
- * - `src/app/layout.tsx`: TanStack Query `QueryClientProvider` 설정 및 Daum Postcode 스크립트 로드.
+ * - `src/app/layout.tsx`: TanStack Query `QueryClientProvider` 설정.
  */
 
-import React, { useState, useCallback, useEffect } from 'react';
-import { useRouter } from 'next/navigation';
-
-// --- 커스텀 훅 임포트 ---
-import { useForm } from '@/hooks/useForm';              // 폼 데이터 상태 관리 커스텀 훅
-import { useValidation } from '@/hooks/useValidation';  // 폼 유효성 검사 로직 커스텀 훅
-import { useAuthQueries } from '@/hooks/useAuthQueries';
-
-// --- 타입 임포트 ---
-import { SignupFormData, SignupApiRequest } from '@/types/member'; // 회원가입 폼 데이터 타입 정의
-import { DaumPostcodeData } from '@/types/address';
-
-// --- UI 컴포넌트 임포트 ---
-import Input from '@/components/ui/Input';              // 재사용 가능한 Input 컴포넌트
-import Button from '@/components/ui/Button';            // 재사용 가능한 Button 컴포넌트
-import Select from '@/components/ui/Select';            // 재사용 가능한 Select 컴포넌트
-import AddressSearchButton from '@/components/common/AddressSearchButton';
-
-// 전화번호 앞자리 옵션은 컴포넌트 외부에서 정의하여 불필요한 재생성 방지
-const PHONE_PREFIX_OPTIONS = [
-  { value: '010', label: '010' }, { value: '011', label: '011' }, { value: '012', label: '012' },
-  { value: '013', label: '013' }, { value: '014', label: '014' }, { value: '015', label: '015' },
-  { value: '016', label: '016' }, { value: '017', label: '017' }, { value: '018', label: '018' },
-  { value: '019', label: '019' }
-];
-
-/**
- * @function SignUpForm
- * @description 회원가입 폼을 렌더링하고 사용자 입력을 처리하며, 유효성 검사 및 API 호출을 담당합니다.
- * TanStack Query를 활용하여 비동기 상태 관리를 최적화합니다.
- */
 function SignupForm() {
   const router = useRouter();
 
   // --- 폼 데이터 관리 ---
-  const { formData, handleChange, setFormData, resetForm } = useForm<SignupFormData>({
+  const { formData, handleChange: baseHandleChange, setFormData, resetForm } = useForm<SignupFormData>({
     userId: '',
     userPwd: '', confirmUserPwd: '',
     emailLocalPart: '', emailDomain: '',
@@ -82,70 +78,130 @@ function SignupForm() {
   // TanStack Query 훅에서 API 호출 함수 및 상태를 가져옵니다.
   const { checkUserIdMutation, checkEmailMutation, signupMutation } = useAuthQueries();
 
-  // 아이디 중복 확인 결과 상태 (TanStack Query 결과를 로컬 상태로 반영)
-  // 이는 `useValidation` 훅에 `isUserIdAvailable`을 전달하기 위함입니다.
+  // 중복 확인 결과 상태 및 마지막 확인 값 추적 (API 응답 기반)
+  // 이 상태들은 오직 API의 '최종' 확인 결과를 저장하며, 입력값 변경 시 초기화됨
   const [isUserIdAvailable, setIsUserIdAvailable] = useState<boolean | null>(null);
   const [lastCheckedUserId, setLastCheckedUserId] = useState<string | null>(null);
 
-  // 이메일 중복 확인 결과 상태 (TanStack Query 결과를 로컬 상태로 반영)
   const [isEmailAvailable, setIsEmailAvailable] = useState<boolean | null>(null);
   const [lastCheckedEmail, setLastCheckedEmail] = useState<string | null>(null);
 
-  // 클라이언트 측 유효성 검사
+  // 클라이언트 측 유효성 검사 훅
+  // useValidation은 이제 isUserIdAvailable, isEmailAvailable을 직접 받지 않고,
+  // validateForm 호출 시 SignupForm 내부에서 이 상태들을 활용하여 전체 유효성을 검사합니다.
   const {
     errors,
-    validateForm,
-    handleFieldChangeAndValidate,
+    validateForm, // 이 함수는 최종 폼 제출 시 모든 유효성 (형식, 중복 확인 여부)을 검사
+    handleFieldChangeAndValidate, // 일반 필드의 유효성 검사용
     setErrors,
-    validateField,
+    validateField, // 순수 클라이언트 측 형식 유효성만 검사 (예: 길이, 문자 종류 등)
     clearFormError,
   } = useValidation(formData, isUserIdAvailable, isEmailAvailable);
 
-  // --- useEffect: Tanstack Query 결과 -> 로컬 상태 동기화 및 유효성 메시지 처리 ---
-  // 아이디 중복 확인 결과 동기화
+  // --- useEffects: TanStack Query 결과를 로컬 상태 및 유효성 메시지에 동기화 ---
+
+  // 아이디 중복 확인 API 응답을 받아 로컬 상태 (isUserIdAvailable, errors.userId) 업데이트
   useEffect(() => {
     if (checkUserIdMutation.isSuccess) {
       setIsUserIdAvailable(checkUserIdMutation.data.isAvailable);
-      setLastCheckedUserId(formData.userId); // 마지막으로 성공적으로 확인된 아이디
+      setLastCheckedUserId(formData.userId); // 현재 검사된 ID 저장 (이 값이 API 응답과 매칭됨)
+      setErrors(prev => ({ ...prev, userId: checkUserIdMutation.data.message })); // 백엔드 메시지 설정
     } else if (checkUserIdMutation.isError) {
-      setIsUserIdAvailable(false); // API 에러 시 사용 불가로 간주
-      setLastCheckedUserId(formData.userId) // 에러 발생 시에도 마지막 확인 아이디 기록 (재확인 방지)
+      setIsUserIdAvailable(false); // API 오류 시 사용 불가로 간주
+      setLastCheckedUserId(formData.userId); // 에러 발생 ID 저장
+      setErrors(prev => ({ ...prev, userId: checkUserIdMutation.error?.message || '아이디 중복 확인 중 오류가 발생했습니다.'}));
     }
-    // userId가 변경되면 isUserIdAvailable을 null로 초기화하는 로직은 아래에서 처리
-  }, [checkUserIdMutation.isSuccess, checkUserIdMutation.isError, checkUserIdMutation.data, formData.userId])
+  }, [checkUserIdMutation.isSuccess, checkUserIdMutation.isError, checkUserIdMutation.data, checkUserIdMutation.error, formData.userId, setErrors]);
 
-  // 이메일 중복 확인 결과 동기화
+  // 이메일 중복 확인 API 응답을 받아 로컬 상태 (isEmailAvailable, errors.email) 업데이트
   useEffect(() => {
     if (checkEmailMutation.isSuccess) {
       setIsEmailAvailable(checkEmailMutation.data.isAvailable);
-      setLastCheckedEmail(`${formData.emailLocalPart}@${formData.emailDomain}`);
+      setLastCheckedEmail(`${formData.emailLocalPart}@${formData.emailDomain}`); // 현재 검사된 이메일 저장
+      setErrors(prev => ({ ...prev, email: checkEmailMutation.data.message })); // 백엔드 메시지 설정
     } else if (checkEmailMutation.isError) {
-      setIsEmailAvailable(false);
-      setLastCheckedEmail(`${formData.emailLocalPart}@${formData.emailDomain}`);
+      setIsEmailAvailable(false); // API 오류 시 사용 불가로 간주
+      setLastCheckedEmail(`${formData.emailLocalPart}@${formData.emailDomain}`); // 에러 발생 이메일 저장
+      setErrors(prev => ({ ...prev, email: checkEmailMutation.error?.message || '이메일 중복 확인 중 오류가 발생했습니다.' }));
     }
-  }, [checkEmailMutation.isSuccess, checkEmailMutation.isError, checkEmailMutation.data, formData.emailLocalPart, formData.emailDomain]);
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [checkEmailMutation.isSuccess, checkEmailMutation.isError, checkEmailMutation.data, checkEmailMutation.error, setErrors]);
 
-  // --- useEffect: 폼 데이터 변경 시 중복 확인 상태 초기화 ---
-  // 이 로직은 `useAuthQueries`에서 QueryClient.removeQueries를 사용하지 않고,
-  // 로컬 상태 `isUserIdAvailable`, `isEmailAvailable`을 관리하기 위해 필요합니다.
-  useEffect(() => {
-    if (lastCheckedUserId !== null && formData.userId !== lastCheckedUserId) {
-      setIsUserIdAvailable(null);
-      setErrors(prev => ({ ...prev, userId: '' }));
-      // NOTE: TanStack Query를 사용하는 경우, 특정 쿼리의 캐시를 무효화하는 것도 고려할 수 있습니다.
-      // 예: queryClient.invalidateQueries(['checkUserId', lastCheckedUserId]);
-      // 하지만 이 경우 UI의 isUserIdAvailable 상태는 직접 관리하는 것이 더 직관적일 수 있습니다.
+
+  // --- 커스텀 handleChange 함수 (실시간 유효성 검사 및 메시지, 상태 초기화) ---
+  const handleChange = useCallback((e: React.ChangeEvent<HTMLInputElement | HTMLSelectElement>) => {
+    const { name, value } = e.target;
+    baseHandleChange(e); // 기본 폼 데이터 업데이트
+
+    // --- 아이디 필드 로직 ---
+    if (name === 'userId') {
+      const currentUserId = value;
+      const formatError = validateField('userId', currentUserId); // 클라이언트 측 형식 유효성만 검사
+
+      // 현재 입력된 아이디가 마지막으로 확인된 아이디와 다를 때만 API 관련 상태 초기화
+      // 사용자가 값을 변경했을 때만 재확인을 유도하고, 동일한 값일 때는 이전 API 메시지를 유지합니다.
+      if (currentUserId !== lastCheckedUserId) {
+        setIsUserIdAvailable(null); // 중복 확인 상태 초기화 (다시 확인해야 함)
+        setLastCheckedUserId(null); // 마지막으로 확인된 ID도 초기화 (이전 결과 무효화)
+        checkUserIdMutation.reset(); // TanStack Query의 이전 API 호출 결과 및 상태 리셋
+
+        if (formatError) {
+          setErrors(prev => ({ ...prev, userId: formatError })); // 형식 위반 시 메시지 출력
+        } else if (currentUserId.trim() === '') {
+          setErrors(prev => ({ ...prev, userId: '' })); // userId가 비어있으면 메시지 제거
+        } else {
+          setErrors(prev => ({ ...prev, userId: '아이디 중복 확인이 필요합니다.' })); // 형식이 유효하고 비어있지 않은 경우: 중복 확인 필요 메시지 출력
+        }
+      } else {
+        // 현재 입력된 아이디가 lastCheckedUserId와 동일한 경우
+        // 이전에 API를 통해 설정된 메시지(사용 가능/사용 불가)를 유지합니다.
+        // 단, 형식 오류가 새로 발생했다면 그 오류를 우선적으로 표시합니다.
+        if (formatError) {
+          setErrors(prev => ({ ...prev, userId: formatError }));
+        }
+        // else: errors.userId는 useEffect에 의해 설정된 API 응답 메시지를 그대로 유지
+      }
+    } 
+    // --- 이메일 필드 로직 (아이디와 동일하게 동작) ---
+    else if (name === 'emailLocalPart' || name === 'emailDomain') {
+      const currentEmailLocalPart = name === 'emailLocalPart' ? value : formData.emailLocalPart;
+      const currentEmailDomain = name === 'emailDomain' ? value : formData.emailDomain;
+      const currentFullEmail = `${currentEmailLocalPart}@${currentEmailDomain}`;
+      const formatError = validateField('email', currentFullEmail);
+
+      // 현재 입력된 이메일이 마지막으로 확인된 이메일과 다를 때만 API 관련 상태 초기화
+      if (currentFullEmail !== lastCheckedEmail) {
+        setIsEmailAvailable(null);
+        setLastCheckedEmail(null);
+        checkEmailMutation.reset();
+
+        if (formatError) {
+          setErrors(prev => ({ ...prev, email: formatError }));
+        } else if (currentFullEmail.trim() === '') {
+          setErrors(prev => ({ ...prev, email: '' }));
+        } else {
+          setErrors(prev => ({ ...prev, email: '이메일 중복 확인이 필요합니다.' }));
+        }
+      } else {
+        // 현재 입력된 이메일이 lastCheckedEmail과 동일한 경우
+        if (formatError) {
+          setErrors(prev => ({ ...prev, email: formatError }));
+        }
+        // else: errors.email은 useEffect에 의해 설정된 API 응답 메시지를 그대로 유지
+      }
     }
-  }, [formData.userId, lastCheckedUserId, setErrors])
-
-  useEffect(() => {
-    const currentFullEmail = `${formData.emailLocalPart}@${formData.emailDomain}`;
-    if (lastCheckedEmail !== null && currentFullEmail !== lastCheckedEmail) {
-      setIsEmailAvailable(null);
-      setErrors(prev => ({ ...prev, email: '' }));
+    // --- 기타 일반 필드 로직 ---
+    else {
+      // 아이디/이메일이 아닌 다른 필드는 일반 유효성 검사 수행
+      handleFieldChangeAndValidate(e); 
     }
-  }, [formData.emailLocalPart, formData.emailDomain, lastCheckedEmail, setErrors])
-
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [
+    baseHandleChange, formData.emailLocalPart, formData.emailDomain, 
+    isUserIdAvailable, lastCheckedUserId, setIsUserIdAvailable, setLastCheckedUserId, checkUserIdMutation, setErrors, validateField,
+    isEmailAvailable, lastCheckedEmail, setIsEmailAvailable, setLastCheckedEmail, checkEmailMutation, handleFieldChangeAndValidate
+  ]);
+  
   // --- 콜백 함수 (이벤트 핸들러) ---
 
   const handleCompleteAddressSearch = useCallback((data: DaumPostcodeData) => {
@@ -155,72 +211,73 @@ function SignupForm() {
       detailAddress: '',
       zonecode: data.zonecode,
     }));
-
     setErrors(prev => ({ ...prev, address: '' }));
-    const addressError = validateField('address', data.roadAddress || data.jibunAddress);
-    if (addressError) {
-      setErrors(prev => ({ ...prev, address: addressError }));
-    }
-  }, [setFormData, setErrors, validateField]);
+  }, [setFormData, setErrors]);
 
   /**
    * @function handleCheckUserId
    * @description 아이디 중복 확인 API를 호출합니다.
-   * API 호출 전 클라이언트 측 유효성 검사를 수행합니다.
+   * 버튼 클릭 시 필수 및 형식 유효성 검사를 통과하면 항상 API 호출을 시도합니다.
    */
   const handleCheckUserId = useCallback(async () => {
-    const userIdError = validateField('userId', formData.userId);
+    const currentUserId = formData.userId.trim();
+    const formatError = validateField('userId', currentUserId);
 
-    if (userIdError) {
-      setErrors(prevErrors => ({ ...prevErrors, userId: userIdError }));
-      setIsUserIdAvailable(null); // 클라이언트 유효성 에러 시 상태 초기화
-      checkUserIdMutation.reset(); // TanStack Query 뮤테이션 상태도 리셋하여 메시지 초기화
-      return;
+    // 1. 클라이언트 측 필수 입력 검사
+    if (!currentUserId) {
+      setErrors(prev => ({ ...prev, userId: '아이디는 필수 항목입니다.' }));
+      return; 
+    }
+    // 2. 클라이언트 측 형식 유효성 검사
+    if (formatError) {
+      setErrors(prev => ({ ...prev, userId: formatError }));
+      return; 
     }
 
-    setErrors(prev => ({ ...prev, userId: '' })); // 기존 클라이언트 유효성 에러 제거
-    setIsUserIdAvailable(null); // 중복 확인 상태 초기화 (API 호출 전)
-    checkUserIdMutation.reset(); // 새로운 호출 시작 전 이전 메시지/상태 리셋
+    // 3. 모든 클라이언트 측 유효성 검사 통과 시 API 호출 시도
+    //    이전의 API 결과 상태 초기화 및 TanStack Query 리셋은 이미 handleChange에서 처리됩니다.
+    //    여기서는 API 호출을 시작하기 위한 최소한의 준비만 합니다.
+    setErrors(prev => ({ ...prev, userId: '' })); // 메시지를 초기화하여 '확인 중...'이 표시되도록 준비 (1-3 시나리오)
 
     try {
-      // TanStack Query의 mutateAsync를 사용하여 비동기 호출
-      await checkUserIdMutation.mutateAsync(formData.userId);
-      // isUserIdAvailable 및 lastCheckedUserId는 useEffect에서 처리됩니다.
+      await checkUserIdMutation.mutateAsync(currentUserId);
     } catch (error) {
-      // 에러는 useMutation onError에서 처리되며, UI에 error.message가 반영됩니다.
+      // 에러는 useMutation onError 및 useEffect에서 처리되므로 여기서는 추가 로직 불필요
     }
   }, [formData.userId, validateField, setErrors, checkUserIdMutation]);
 
-   /**
+
+  /**
    * @function handleCheckEmail
-   * @description 이메일 중복 확인 API를 호출합니다.
-   * API 호출 전 클라이언트 측 유효성 검사를 수행합니다.
+   * @description 이메일 중복 확인 API를 호출합니다. (아이디와 동일하게 동작)
    */
   const handleCheckEmail = useCallback(async () => {
     const fullEmail = `${formData.emailLocalPart}@${formData.emailDomain}`;
+    const formatError = validateField('email', fullEmail);
 
-    const emailError = validateField('email', fullEmail);
-
-    if (emailError) {
-      setErrors(prevErrors => ({ ...prevErrors, email: emailError }));
-      setIsEmailAvailable(null);
-      checkEmailMutation.reset();
+    if (!formData.emailLocalPart.trim() || !formData.emailDomain.trim()) {
+      setErrors(prev => ({ ...prev, email: '이메일은 필수 항목입니다.' }));
+      return;
+    }
+    if (formatError) {
+      setErrors(prev => ({ ...prev, email: formatError }));
       return;
     }
 
     setErrors(prev => ({ ...prev, email: '' }));
     setIsEmailAvailable(null);
+    setLastCheckedEmail(null);
     checkEmailMutation.reset();
 
     try {
       await checkEmailMutation.mutateAsync(fullEmail);
     } catch (error) {
-      // 에러는 useMutation onError에서 처리됩니다.
+      // 에러는 useMutation onError 및 useEffect에서 처리되므로 여기서는 추가 로직 불필요
     }
   },
     [
-      formData.emailLocalPart, formData.emailDomain,
-      validateField, setErrors, checkEmailMutation,
+      formData.emailLocalPart, formData.emailDomain, validateField, 
+      setErrors, checkEmailMutation
     ]
   );
 
@@ -229,13 +286,14 @@ function SignupForm() {
    * @description 최종 폼 제출 핸들러. 모든 유효성 검사를 통과하면 회원가입 API를 호출합니다.
    * @param {React.FormEvent<HTMLFormElement>} e - 폼 이벤트 객체
    */
- const handleSubmit = useCallback(async (e: React.FormEvent<HTMLFormElement>) => {
+  const handleSubmit = useCallback(async (e: React.FormEvent<HTMLFormElement>) => {
     e.preventDefault();
     clearFormError(); // 폼 제출 시 전체 폼 에러 메시지 초기화
-    signupMutation.reset(); // 회원가입 뮤테이션 상태 리셋
+    signupMutation.reset();
 
-    // 1. 전체 폼 유효성 검사 실행
-    const isValid = validateForm();
+    // 1. 전체 폼 유효성 검사 실행 (여기서 isUserIdAvailable/isEmailAvailable도 함께 검사됨)
+    // useValidation 훅의 validateForm이 isUserIdAvailable, isEmailAvailable 상태를 사용하도록 업데이트 필요
+    const isValid = validateForm(); 
     if (!isValid) {
       setErrors(prev => ({ ...prev, form: '입력된 정보를 확인해주세요.' }));
       return;
@@ -258,11 +316,11 @@ function SignupForm() {
     // 3. 회원가입 API 호출 (TanStack Query의 mutateAsync 사용)
     try {
       await signupMutation.mutateAsync(signupData);
-      alert('회원 가입에 성공했습니다!');
+      alert('회원 가입에 성공했습니다!'); // 커스텀 모달 사용을 고려하세요 (alert 대신)
       resetForm(); // 폼 데이터 초기화
       router.push('/'); // 성공 시 메인 페이지로 이동
     } catch (error) {
-      // 에러는 useMutation onError에서 처리되지만, 여기에서 추가적인 UI 피드백을 줄 수 있습니다.
+      // 에러는 useMutation onError에서 처리되지만, 여기서 추가 UI 피드백 가능
       setErrors(prev => ({ ...prev, form: error instanceof Error ? error.message : '회원가입 중 알 수 없는 오류가 발생했습니다.' }));
     }
   }, [formData, validateForm, signupMutation, router, setErrors, resetForm, clearFormError]);
@@ -271,25 +329,34 @@ function SignupForm() {
   /**
    * @function handleBlur
    * @description 입력 필드에서 포커스 아웃 시 (onBlur 이벤트) 유효성 검사를 실행합니다.
+   * `handleChange`에서 실시간 유효성 검사를 처리하지만, `onBlur` 시점에 최종 유효성 검사 결과를 반영합니다.
    * @param {React.FocusEvent<HTMLInputElement | HTMLSelectElement>} e - 포커스 이벤트 객체
    */
   const handleBlur = useCallback((e: React.FocusEvent<HTMLInputElement | HTMLSelectElement>) => {
-    handleFieldChangeAndValidate(e as React.ChangeEvent<HTMLInputElement | HTMLSelectElement>);
-  }, [handleFieldChangeAndValidate]);
+    // `handleChange` 로직을 그대로 호출하여 `onBlur` 시점에도 실시간 유효성 검사와 동일한 메시징 로직을 따르도록 합니다.
+    handleChange(e as React.ChangeEvent<HTMLInputElement | HTMLSelectElement>);
+  }, [handleChange]); // handleChange를 의존성에 포함
 
-  // 아이디 중복 확인 버튼 활성화/비활성화 로직
-  // userId 필드의 클라이언트 측 유효성 검사 에러가 없을 때 활성화
+  // 아이디 중복 확인 버튼 활성화/비활성화 로직 (1-2, 1-3 시나리오 처리)
+  // 버튼은 다음 조건 중 하나라도 만족하면 비활성화됩니다.
+  // 1. API 호출 중 (`checkUserIdMutation.isPending`)
+  // 2. 아이디 입력 필드가 비어있음 (`!formData.userId.trim()`)
+  // 3. 아이디 형식 오류가 있음 (`!!validateField('userId', formData.userId)`가 true를 반환)
+  // 4. 현재 입력된 아이디가 'lastCheckedUserId'와 일치하고, API를 통해 '사용 가능' 또는 '이미 가입됨'으로 확정되었을 때
   const isUserIdCheckButtonDisabled =
-    checkUserIdMutation.isPending || // API 로딩 중
-    !formData.userId.trim() || // userId가 비어있을 때
-    !!validateField('userId', formData.userId, true); // `true`를 전달하여 `custom` 규칙을 무시하고 필드 자체의 유효성만 검사
+    checkUserIdMutation.isPending || 
+    !formData.userId.trim() || 
+    !!validateField('userId', formData.userId) || // 형식 오류가 있다면 비활성화
+    (isUserIdAvailable !== null && formData.userId === lastCheckedUserId); // API 확인이 완료되었고 (true/false), 현재 값이 그 확인된 값과 동일하다면 비활성화
 
-  // 이메일 중복 확인 버튼 활성화/비활성화 로직
+    
+  // 이메일 중복 확인 버튼 활성화/비활성화 로직 (아이디와 동일한 로직 적용)
   const isEmailCheckButtonDisabled =
-    checkEmailMutation.isPending || // API 로딩 중
-    !formData.emailLocalPart.trim() || // 이메일 로컬파트가 비어있을 때
-    !formData.emailDomain.trim() || // 이메일 도메인이 비어있을 때
-    !!validateField('email', `${formData.emailLocalPart}@${formData.emailDomain}`, true); // `true`를 전달하여 `custom` 규칙을 무시
+    checkEmailMutation.isPending || 
+    !formData.emailLocalPart.trim() || 
+    !formData.emailDomain.trim() || 
+    !!validateField('email', `${formData.emailLocalPart}@${formData.emailDomain}`) || // 형식 오류가 있다면 비활성화
+    (isEmailAvailable !== null && `${formData.emailLocalPart}@${formData.emailDomain}` === lastCheckedEmail); // API 확인이 완료되었고, 현재 값이 그 확인된 값과 동일하다면 비활성화
 
   // JSX 렌더링 시작
   return (
@@ -298,7 +365,7 @@ function SignupForm() {
         <h2 className="text-2xl font-bold mb-6 text-center">회원가입</h2>
         <form onSubmit={handleSubmit} className="space-y-4">
 
-          {/* 전체 폼 제출 관련 API 에러 메시지 (아이디/이메일 중복 확인 메시지와는 다름) */}
+          {/* 전체 폼 제출 관련 API 에러 메시지 */}
           {signupMutation.isError && (
             <p className="text-red-500 text-center">
               {signupMutation.error?.message || '회원가입 중 알 수 없는 오류가 발생했습니다.'}
@@ -319,7 +386,7 @@ function SignupForm() {
                 value={formData.userId}
                 onChange={handleChange}
                 onBlur={handleBlur}
-                error={errors.userId} // errors.userId를 직접 전달
+                error={undefined} // 오류 메시지는 아래 통합 영역에서 표시
                 className="flex-grow mr-2"
               />
               <Button
@@ -333,20 +400,14 @@ function SignupForm() {
             </div>
             {/* 아이디 관련 모든 메시지를 표시할 통합 영역 */}
             <div className="min-h-[1.25rem] text-xs italic mt-1">
-              {/* 클라이언트 유효성 에러가 있다면 최우선 표시 */}
-              {errors.userId && <p className="text-red-500">{errors.userId}</p>}
-              {/* 클라이언트 에러가 없고, API 요청이 완료되었을 때만 API 메시지 표시 */}
-              {!errors.userId && checkUserIdMutation.isSuccess && (
-                <p className={checkUserIdMutation.data?.isAvailable ? "text-green-600" : "text-red-500"}>
-                  {checkUserIdMutation.data?.message}
+              {checkUserIdMutation.isPending ? (
+                <p className="text-gray-500">확인 중...</p>
+              ) : errors.userId ? ( // errors.userId에 값이 있으면 우선적으로 표시
+                <p className={errors.userId.includes('사용 가능') ? "text-green-600" : "text-red-500"}>
+                  {errors.userId}
                 </p>
-              )}
-              {/* API 에러 메시지 (API 호출 실패 시) */}
-              {!errors.userId && checkUserIdMutation.isError && (
-                <p className="text-red-500">
-                  {checkUserIdMutation.error?.message || '아이디 중복 확인 중 오류가 발생했습니다.'}
-                </p>
-              )}
+              ) : null /* 메시지가 없으면 아무것도 표시 안함 */
+              }
             </div>
           </div>
 
@@ -380,7 +441,7 @@ function SignupForm() {
                 value={formData.emailLocalPart}
                 onChange={handleChange}
                 onBlur={handleBlur}
-                error={undefined}
+                error={undefined} // 이메일 필드에 대한 개별 에러는 통합 'email' 에러로 표시되므로 undefined
                 className="flex-grow mr-2"
               />
               <span className="mr-2 text-gray-500 mt-[-22px]">@</span>
@@ -390,7 +451,7 @@ function SignupForm() {
                 value={formData.emailDomain}
                 onChange={handleChange}
                 onBlur={handleBlur}
-                error={undefined}
+                error={undefined} // 이메일 필드에 대한 개별 에러는 통합 'email' 에러로 표시되므로 undefined
                 className="flex-grow mr-2"
               />
               <Button
@@ -404,17 +465,14 @@ function SignupForm() {
             </div>
             {/* 이메일 관련 모든 메시지를 표시할 통합 영역 */}
             <div className="min-h-[1.25rem] text-xs italic mt-1">
-              {errors.email && <p className="text-red-500">{errors.email}</p>}
-              {!errors.email && checkEmailMutation.isSuccess && (
-                <p className={checkEmailMutation.data?.isAvailable ? "text-green-600" : "text-red-500"}>
-                  {checkEmailMutation.data?.message}
+              {checkEmailMutation.isPending ? (
+                <p className="text-gray-500">확인 중...</p>
+              ) : errors.email ? ( // errors.email에 값이 있으면 우선적으로 표시
+                <p className={errors.email.includes('사용 가능') ? "text-green-600" : "text-red-500"}>
+                  {errors.email}
                 </p>
-              )}
-              {!errors.email && checkEmailMutation.isError && (
-                <p className="text-red-500">
-                  {checkEmailMutation.error?.message || '이메일 중복 확인 중 오류가 발생했습니다.'}
-                </p>
-              )}
+              ) : null /* 메시지가 없으면 아무것도 표시 안함 */
+              }
             </div>
           </div>
           
@@ -447,7 +505,7 @@ function SignupForm() {
             value={formData.gender}
             onChange={handleChange}
             onBlur={handleBlur}
-            options={[{ value: '', label: '선택' }, { value: 'M', label: '남성' }, { value: 'F', label: '여성' }, { value: 'O', label: '기타' }]}
+            options={[{ value: 'M', label: '남성' }, { value: 'F', label: '여성' }, { value: 'O', label: '기타' }]}
             error={errors.gender}
           />
 
@@ -505,7 +563,7 @@ function SignupForm() {
                 onBlur={handleBlur}
                 error={undefined}
               />
-              <span className="mr-2 text-gray-500">-</span>
+              <span className="mr-2 text-gray-500 mb-2">-</span>
               <Input
                 name="phoneMiddle"
                 type="text"
@@ -514,9 +572,9 @@ function SignupForm() {
                 onBlur={handleBlur}
                 maxLength={4}
                 error={undefined}
-                className="w-1/3 mr-2"
+                className="w-1/3 mr-2 mt-3"
               />
-              <span className="mr-2 text-gray-500">-</span>
+              <span className="mr-2 text-gray-500 mb-2">-</span>
               <Input
                 name="phoneLast"
                 type="text"
@@ -525,7 +583,7 @@ function SignupForm() {
                 onBlur={handleBlur}
                 maxLength={4}
                 error={undefined}
-                className="w-1/3"
+                className="w-1/3 mt-3"
               />
             </div>
             {errors.phone && <p className="text-red-500 text-xs italic mt-1">{errors.phone}</p>}

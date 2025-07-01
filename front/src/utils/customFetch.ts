@@ -1,5 +1,5 @@
 import axios, { AxiosError, AxiosResponse } from 'axios';
-import api from './api';
+import api from '../api/api';
 import { ApiErrorResponse } from '@/types/member';
 
 // T는 API 응답 데이터의 타입 (예: { isAvailable: boolean, message: string })
