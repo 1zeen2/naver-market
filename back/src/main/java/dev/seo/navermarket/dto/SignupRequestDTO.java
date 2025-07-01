@@ -48,7 +48,6 @@ public class SignupRequestDTO {
     @NotBlank(message = "상세 주소는 필수 입력 값입니다.")
     private String detailAddress;
     
-    // toEntity() 메서드는 현재로서는 추가 수정할 부분이 없습니다.
     // MemberEntity의 @PrePersist에서 기본값 설정이 처리되므로 DTO에서는 이 필드들을 넘기지 않아도 됩니다.
     public MemberEntity toEntity() {
         return MemberEntity.builder()

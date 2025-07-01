@@ -112,10 +112,6 @@ public class MemberEntity {
 	
 	@PrePersist
     public void prePersist() {
-        // 만약 @CreatedDate가 예상대로 동작하지 않으면 this.joinDate = LocalDateTime.now(); 추가 가능
-        if (this.lastLogin == null) {
-            this.lastLogin = LocalDateTime.now();
-        }
         if (this.profileImage == null || this.profileImage.isEmpty()) {
             this.profileImage = "default_profile.png"; // 기본 프로필 이미지 URL **만들어야 함**
         }

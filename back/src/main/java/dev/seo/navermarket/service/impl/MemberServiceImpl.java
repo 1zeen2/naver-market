@@ -45,7 +45,7 @@ public class MemberServiceImpl implements MemberService {
 	// 회원 가입 로직
 	@Transactional
 	@Override
-	public void signUp(MemberEntity member) {
+	public void signup(MemberEntity member) {
 		// 회원 가입 유효성 검사시 이상이 없다면 회원 정보를 DB에 저장
 		signupValidator.validateSignUp(member);
 		

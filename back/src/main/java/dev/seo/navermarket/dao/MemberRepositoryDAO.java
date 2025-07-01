@@ -15,9 +15,5 @@ public interface MemberRepositoryDAO extends JpaRepository<MemberEntity, Long>	{
 	boolean existsByEmail(String email);
 	
 	// 회원 이름으로 회원 정보 찾기 기능
-	Optional<MemberEntity> findByUserId(String userId);
-	
-//	@Override
-//	public MemberEntity save(MemberEntity member);
-	
+	Optional<MemberEntity> findByUserId(String userId);	
 }

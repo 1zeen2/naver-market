@@ -38,53 +38,66 @@ public class MemberRestController {
 	
 	// 아이디 중복 확인 API EndPoint: GET 요청으로 쿼리 파라미터를 받음
     @GetMapping("/member/check-id")
-    public ResponseEntity<Map<String, Boolean>> checkUserId(@RequestParam("userId") String userId) {
-    	Map<String, Boolean> response = new HashMap<>();
+    public ResponseEntity<Map<String, Object>> checkUserId(@RequestParam("userId") String userId) {
+    	Map<String, Object> response = new HashMap<>();
     	
         if (userId == null || userId.trim().isEmpty()) {
         	log.warn("아이디 입력 후 중복 확인을 해주세요.");
             response.put("isAvailable", false);
+            response.put("message", "아이디는 필수 항목입니다.");
             return ResponseEntity.badRequest().body(response);
         }
         
         if (userId.trim().length() < 3 || !userId.matches("^[a-zA-Z0-9]+$")) {
         	log.warn("아이디는 3글자 이상의 영문, 숫자만 가능합니다.");
         	response.put("isAvailable", false);
+        	response.put("message", "아이디는 3글자 이상의 영문, 숫자만 가능합니다.");
         	return ResponseEntity.badRequest().body(response);
         }
 
         boolean isDuplicate = memberService.checkUserIdDuplication(userId);
 
-        response.put("isAvailable", !isDuplicate); // isDuplicate가 true면 아이디 중복으로 해당 아이디 가입 불가
+        response.put("isAvailable", !isDuplicate);
+        if (!isDuplicate) {
+        	response.put("message", "사용 가능한 아이디 입니다.");
+        } else {
+        	response.put("message", "이미 사용 중인 아이디 입니다.");
+        }
         log.info("아이디 중복 확인 '{}': isAvailable={}", userId, !isDuplicate);
         
         return ResponseEntity.ok(response);
     }
     
-    // 이메일 중복 확인 API EndPotin
+    // 이메일 중복 확인 API EndPoint
     @GetMapping("/member/check-email")
-    public ResponseEntity<Map<String, Boolean>> checkEmail(@RequestParam("email") String email) {
-    	Map<String, Boolean> response = new HashMap<>();
-    	
-    	if (email == null || email.trim().isEmpty()) {
-    		log.warn("이메일 입력 후 중복 확인을 해주세요");
-    		response.put("isAvailable", false);
-    		return ResponseEntity.badRequest().body(response);
-    	}
-    	
-    	if (!EMAIL_PATTERN.matcher(email.trim()).matches()) {
-    		log.warn("유효하지 않은 이메일 형식입니다: {}", email);
+    public ResponseEntity<Map<String, Object>> checkEmail(@RequestParam("email") String email) {
+        Map<String, Object> response = new HashMap<>();
+
+        if (email == null || email.trim().isEmpty()) {
+            log.warn("이메일 입력 후 중복 확인을 해주세요");
             response.put("isAvailable", false);
+            response.put("message", "이메일은 필수 항목입니다.");
             return ResponseEntity.badRequest().body(response);
-    	}
-    	
-    	boolean isDuplicate = memberService.checkEmailDuplication(email);
-    	
-    	response.put("isAvliable", !isDuplicate);
-    	log.info("이메일 중복 확인 '{}': isAvailavble={}", email, !isDuplicate);
-    	
-    	return ResponseEntity.ok(response);
-    	
+        }
+
+        if (!EMAIL_PATTERN.matcher(email.trim()).matches()) {
+            log.warn("유효하지 않은 이메일 형식입니다: {}", email);
+            response.put("isAvailable", false);
+            response.put("message", "유효하지 않은 이메일 형식입니다.");
+            return ResponseEntity.badRequest().body(response);
+        }
+
+        boolean isDuplicate = memberService.checkEmailDuplication(email);
+
+        response.put("isAvailable", !isDuplicate);
+        if (!isDuplicate) { // 이메일이 사용 가능한 경우 => isAvailable == true
+            response.put("message", "사용 가능한 이메일입니다.");
+        } else { // 이메일이 이미 사용 중인 경우 => isAvailable == false
+            response.put("message", "이미 가입되어있는 이메일입니다.");
+        }
+        log.info("이메일 중복 확인 '{}': isAvailable={}", email, !isDuplicate);
+
+        return ResponseEntity.ok(response);
     }
 
 	
@@ -104,7 +117,7 @@ public class MemberRestController {
             return ResponseEntity.badRequest().body("회원 가입 요청 데이터가 비어있습니다.");
         }
 		
-        // ✨ 2. signupRequestDTO.toEntity()가 반환하는 MemberEntity 객체를 'memberEntity' 변수에 저장
+        // 2. signupRequestDTO.toEntity()가 반환하는 MemberEntity 객체를 'memberEntity' 변수에 저장
         // 이 변수를 사용하여 로그를 찍고, null 검사를 수행하며, Service로 전달해야 합니다.
         MemberEntity memberEntity = signupRequestDTO.toEntity();
         
@@ -121,7 +134,7 @@ public class MemberRestController {
         // MemberService의 signUp 메서드는 유효성 검사를 가지고 있음
         // Service에서 예외 처리를 하면 여기서 catch
         try {
-			memberService.signUp(memberEntity);
+			memberService.signup(memberEntity);
 			return ResponseEntity.status(HttpStatus.CREATED).body("회원 가입이 성공적으로 완료되었습니다."); // 201 Created
         } catch (RuntimeException e) {
         	log.error("회원 가입 실패: {}", e.getMessage());
@@ -139,7 +152,7 @@ public class MemberRestController {
 		log.info("회원의 비밀번호 변경 시도: {} 새로운 비밀번호 (masked): [PROTECTED]", memberId);
 		
 		if (newUserPwd == null || newUserPwd.trim().isEmpty() || newUserPwd.trim().length() < 8) {
-            return ResponseEntity.badRequest().body("새 비밀번호는 8자리 이상이어야 합니다.");
+            return ResponseEntity.badRequest().body("비밀번호는 8자리 이상이어야 합니다.");
         }
 		
 		memberService.changeUserPwd(memberId, newUserPwd);
