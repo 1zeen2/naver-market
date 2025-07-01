@@ -1,4 +1,3 @@
-// # 전역 레이아웃
 import type { Metadata } from "next";
 import { Geist, Geist_Mono } from "next/font/google";
 import "../styles/globals.css";
@@ -7,7 +6,6 @@ import Footer from "../components/Footer";
 import Script from "next/script";
 import ReactQueryProvider from "@/components/providers/ReactQueryProvider";
 
-// eslint-disable-next-line @typescript-eslint/no-unused-vars
 const geistSans = Geist({ variable: "--font-geist-sans", subsets: ["latin"] });
 // eslint-disable-next-line @typescript-eslint/no-unused-vars
 const geistMono = Geist_Mono({ variable: "--font-geist-mono", subsets: ["latin"] });
@@ -16,7 +14,6 @@ export const metadata: Metadata = {
   title: "이웃 마켓",
   description: "이웃과 중고 거래를 통해 마음을 나눠보아요.",
 };
-
 
 /**
  * @function RootLayout
@@ -29,17 +26,21 @@ export const metadata: Metadata = {
  * @param {React.ReactNode} props.children - 렌더링될 페이지 또는 하위 레이아웃 컴포넌트들
  * @returns {JSX.Element} 렌더링된 RootLayout 컴포넌트
  */
-export default function RootLayout({ children }: Readonly<{ children: React.ReactNode }>) {
+export default function RootLayout({ children }: Readonly<{children: React.ReactNode}>) {
   return (
     <html lang="ko">
-      <body>
+      <body className={geistSans.className}>
         {/* ReactQueryProvider로 애플리케이션의 핵심 내용을 감싸서,
             하위 컴포넌트들이 TanStack Query를 사용할 수 있게 합니다.
             QueryClient 인스턴스와 Devtools는 ReactQueryProvider 내부에서 관리됩니다. */}
         <ReactQueryProvider>
-          <Header />
-          <main className="p-8 pb-20 sm:p-20 bg-yellow-100">{children}</main>
-          <Footer />
+          {/* Header, main, Footer를 flexbox 컨테이너로 만듭니다. */}
+          {/* 자식 요소들을 세로로 정렬 (Header, main, Footer 순서) */}
+          <div className="flex flex-col min-h-screen">
+            <Header />
+            <main className="p-8 pb-20 sm:p-20 flex-grow">{children}</main>
+            <Footer />
+          </div>
         </ReactQueryProvider>
 
         {/* Daum Postcode API 스크립트 (클라이언트 컴포넌트 외부에서 전역적으로 로드) */}

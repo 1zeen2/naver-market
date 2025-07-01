@@ -12,7 +12,7 @@ const menuItems = [
 
 export default function Navbar() {
   return (
-    <nav className="bg-gray-100 py-3 shadow-inner">
+    <nav className="py-3">
       <ul className="flex justify-center gap-6">
           {menuItems.map((item) => (
             <li key={item.name}>
