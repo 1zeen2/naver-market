@@ -31,7 +31,7 @@ import org.springframework.data.jpa.domain.support.AuditingEntityListener;
  */
 
 @Entity
-@Table(name = "nm_member")
+@Table(name = "member")
 // @Data는 equals/hashCode에 문제가 생길 수 있다고 하여 Getter/Setter만 사용
 @Getter
 @Setter
