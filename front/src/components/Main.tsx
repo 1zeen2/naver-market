@@ -2,36 +2,143 @@
 
 import React from "react";
 import Image from "next/image";
+import { useQuery } from '@tanstack/react-query';
+import { Product} from '@/types/product';
+
+/**
+ * @brief 주어진 ISO 8601 형식의 날짜 문자열을 "몇 시간 전", "몇 분 전", "방금 전"과 같은
+ * 상대적인 시간 형식으로 변환합니다. 년, 월, 일 단위는 달력 기반으로 정확하게 계산하며,
+ * 시간, 분, 초 단위는 경과된 시간을 기준으로 계산합니다.
+ * @param dateString ISO 8601 형식의 날짜 문자열 (예: "2023-10-27T10:00:00.000Z")
+ * @returns string 상대적인 시간 문자열
+ */
+function formatTimeAgo(dateString: string): string {
+  const now = new Date(); // 현재 시간
+  const updatedDate = new Date(dateString); // 상품 업데이트 시간
+
+  // '일 전'을 계산하기 위해 현재 날짜와 업데이트 날짜의 자정(00:00:00)을 기준으로 차이를 계산합니다.
+  // 이 방식은 달력상의 날짜 경계에 따라 '일'이 증가하도록 합니다.
+  const startOfNow = new Date(now.getFullYear(), now.getMonth(), now.getDate());
+  const startOfUpdatedDate = new Date(updatedDate.getFullYear(), updatedDate.getMonth(), updatedDate.getDate());
+  const diffInDaysCalendar = Math.floor((startOfNow.getTime() - startOfUpdatedDate.getTime()) / (1000 * 60 * 60 * 24));
+
+  // '시간 전', '분 전', '초 전'을 계산하기 위해 총 경과된 시간을 사용합니다.
+  const diffInMilliseconds = now.getTime() - updatedDate.getTime();
+  const diffInSeconds = Math.floor(diffInMilliseconds / 1000);
+
+  // 1. 년, 월 (달력 기준) 계산
+  // 현재 날짜의 '일'이 업데이트 날짜의 '일'보다 작으면 월을 조정하여 정확한 월 차이를 계산합니다.
+  let years = now.getFullYear() - updatedDate.getFullYear();
+  let months = now.getMonth() - updatedDate.getMonth();
+  
+  if (now.getDate() < updatedDate.getDate()) {
+    months--;
+  }
+  // 월이 음수일 경우 년을 조정합니다.
+  if (months < 0) {
+    years--;
+    months += 12;
+  }
+
+  // 2. 가장 큰 단위부터 출력 (년, 월, 일 우선)
+  if (years > 0) {
+    return `${years}년 전`;
+  } else if (months > 0) {
+    return `${months}개월 전`;
+  } else if (diffInDaysCalendar > 0) { // 달력상의 날짜 차이를 기준으로 '일 전'을 표시
+    return `${diffInDaysCalendar}일 전`;
+  } else { // 같은 날짜 내에서는 경과된 시간을 기준으로 시간, 분, 초를 표시
+    const hours = Math.floor(diffInSeconds / 3600);
+    const minutes = Math.floor((diffInSeconds % 3600) / 60);
+
+    if (hours > 0) {
+      return `${hours}시간 전`;
+    } else if (minutes > 0) {
+      return `${minutes}분 전`;
+    } else if (diffInSeconds >= 10) { // 10초 이상
+      return `${diffInSeconds}초 전`;
+    } else {
+      return "방금 전"; // 10초 미만
+    }
+  }
+}
+
+/**
+ * @brief 메인 피드에 표시될 상품 목록을 백엔드에서 가져오는 비동기 함수입니다.
+ * @returns Promise<Product[]> 상품 객체 배열을 반환합니다.
+ * @throws Error API 호출 실패 시 에러를 발생시킵니다.
+ */
+async function fetchMainFeedProducts(): Promise<Product[]> {
+  // 환경 변수에서 API 기본 URL을 가져옵니다.
+  // NEXT_PUBLIC_ 접두사는 클라이언트-사이드 코드에서 접근 가능하도록 합니다.
+  // 환경 변수가 설정되지 않았을 경우를 대비하여 기본값(http://localhost:80/api)을 제공합니다.
+  const API_BASE_URL = process.env.NEXT_PUBLIC_API_BASE_URL || 'http://localhost:80/api';
+  const res = await fetch(`${API_BASE_URL}/products/main-feed`);
+  
+  if (!res.ok) {
+    throw new Error('Failed to fetch main feed products');
+  }
+  return res.json();
+}
 
 export default function Main() {
+  const { data: products, isLoading, isError, error } = useQuery<Product[], Error>({
+    queryKey: ['mainFeedProducts'], // 쿼리 키 : 메인 피드 상품 목록을 나타냄.
+    queryFn: fetchMainFeedProducts, // 데이터 페칭 함수
+  });
+
+  if (isLoading) {
     return (
-      // <main className="flex flex-col items-center justify-center">
-      //   <h1 className="text-2xl font-bold">이웃마켓에 오신 것을 환영합니다!</h1>
-      //   <p className="text-lg mt-4">이웃과 중고 거래를 시작해보세요.</p>
-      // </main>
-      <main className="container mx-auto py-8 px-4">
+      <main className="container mx-auto py-8 px-4 text-center">
+        <h2 className="text-3xl font-bold mb-6">최신 상품</h2>
+        <div className="text-gray-600">상품을 불러오는 중...</div>
+      </main>
+    );
+  }
+
+  if (isError) {
+    return(
+      <main className="container mx-auto py-8 px-4 text-center">
+        <h2 className="text-3xl font-bold mb-6">최신 상품</h2>
+        <div className="text-red-600">상품을 불러오는데 실패했습니다: {error?.message}</div>
+      </main>
+    );
+  }
+
+  // products가 undefined일 경우 빈 배열로 처리하여 map 오류 방지
+  const productList = products || [];
+
+  return (
+    <main className="container mx-auto py-8 px-4">
       <h2 className="text-3xl font-bold mb-6 text-center">최신 상품</h2>
       <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-6">
-        {/* 여기에 실제 상품 목록을 렌더링하는 로직이 들어갑니다. */}
-        {/* 예시 상품 카드 */}
-        {[1, 2, 3, 4, 5, 6, 7, 8].map(item => (
-          <div key={item} className="bg-white rounded-lg shadow-md overflow-hidden">
-            <Image
-              src={`https://placehold.co/300x200/FF7F50/FFFFFF?text=Product+${item}`} 
-              alt={`상품 이미지 ${item}`} 
-              width={300}
-              height={200}
-              className="w-full h-48 object-cover"
-              unoptimized={true} // 플레이스홀더 이미지이므로 최적화 비활성화
-            />
-            <div className="p-4">
-              <h3 className="font-semibold text-lg mb-1">상품명 {item}</h3>
-              <p className="text-gray-600 text-sm mb-2">카테고리</p>
-              <p className="text-xl font-bold text-orange-600">{(10000 + item * 1000).toLocaleString()}원</p>
+        {productList.length > 0 ? (
+          productList.map((product: Product) => (
+            <div key={product.productId} className="bg-white rounded-lg shadow-md overflow-hidden">
+              <Image 
+                src={product.imageUrl}
+                alt={product.title}
+                width={300}
+                height={200}
+                className="w-full h-48 object-cover"
+                unoptimized={true} // 외부 이미지 URL이므로 최적화 비활성화 (next.config.js 설정 필요 시 제거)
+              />
+              <div className="p-4">
+                <h3 className="font-semibold text-lg mb-1">{product.title}</h3>
+                <p className="text-gray-600 text-sm mb-2">{product.category}</p>
+                <p className="text-gray-500 text-xs mb-2">{formatTimeAgo(product.updatedAt)}</p>
+                <p className="text-xl font-bold text-orange-600">{product.price.toLocaleString()}원</p>
+              </div>
             </div>
+          ))
+        ) : (
+          <div className="col-span-full text-center text-gray-500 text-lg">
+            등록된 상품이 없습니다.
           </div>
-        ))}
+        )}
       </div>
+      {/* 현재는 페이지네이션이 백엔드에서 List로 반환되므로 프론트엔드에서 직접 구현하기 어렵습니다. */}
+      {/* 백엔드 ProductController의 getMainFeedProducts()를 Page<ProductEntity>로 변경하면 페이지네이션 가능합니다. */}
     </main>
-    );
+  );
 }

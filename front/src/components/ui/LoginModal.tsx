@@ -1,4 +1,7 @@
+"use client"
+
 import { useState, useEffect } from "react";
+import { useAuth } from "@/context/AuthContext";
 
 interface ModalProps {
   isOpen: boolean;
@@ -7,8 +10,10 @@ interface ModalProps {
 
 export default function LoginModal({ isOpen, closeModal }: ModalProps) {
   const [keepLoggedIn, setKeepLoggedIn] = useState(false); // 로그인 상태 유지 상태 관리
-  const [username, setUsername] = useState(""); // 아이디 상태
-  const [userPwd, setuserPwd] = useState(""); // 비밀번호 상태
+  const [userId, setUserId] = useState(""); // 아이디 상태
+  const [userPwd, setUserPwd] = useState(""); // 비밀번호 상태
+
+  const { login, isLoading } = useAuth();
 
   useEffect(() => {
     // ESC 키로 모달 닫기
@@ -27,9 +32,21 @@ export default function LoginModal({ isOpen, closeModal }: ModalProps) {
   if (!isOpen) return null; // 모달이 열려야만 내용이 보이도록 처리
 
   // 로그인 버튼 클릭 혹은 엔터 키로 로그인인
-  const handleLogin = (e: React.FormEvent) => {
+  const handleLogin = async (e: React.FormEvent) => {
     e.preventDefault(); // 폼 제출 시 페이지 리로딩 방지
     // 여기서 실제 로그인 로직을 추가하세요.
+
+    if (!userId || !userPwd) {
+      console.warn("ID와 비밀번호를 입력해주세요");
+      return;
+    }
+
+    try {
+      await login(userId, userPwd);
+      closeModal();
+    } catch (error) {
+      console.error("로그인 처리 중 오류 발생 (Modal Component): ", error);
+    }
   };
 
   return (
@@ -45,8 +62,9 @@ export default function LoginModal({ isOpen, closeModal }: ModalProps) {
               type="text"
               placeholder="아이디 입력"
               className="w-full p-3 border rounded-md"
-              value={username}
-              onChange={(e) => setUsername(e.target.value)}
+              value={userId}
+              onChange={(e) => setUserId(e.target.value)}
+              disabled={isLoading}
             />
           </div>
 
@@ -57,7 +75,8 @@ export default function LoginModal({ isOpen, closeModal }: ModalProps) {
               placeholder="비밀번호 입력"
               className="w-full p-3 border rounded-md"
               value={userPwd}
-              onChange={(e) => setuserPwd(e.target.value)}
+              onChange={(e) => setUserPwd(e.target.value)}
+              disabled={isLoading}
             />
           </div>
 
@@ -68,6 +87,7 @@ export default function LoginModal({ isOpen, closeModal }: ModalProps) {
               checked={keepLoggedIn}
               onChange={() => setKeepLoggedIn(!keepLoggedIn)}
               className="mr-2"
+              disabled={isLoading}
             />
             <span className="text-sm">로그인 상태 유지</span>
           </div>
@@ -76,8 +96,9 @@ export default function LoginModal({ isOpen, closeModal }: ModalProps) {
           <button
             type="submit"
             className="w-full bg-blue-500 text-white p-3 rounded-md hover:bg-blue-600"
+            disabled={isLoading}
           >
-            로그인
+            {isLoading ? '로그인 중...' : '로그인'}
           </button>
         </form>
 
@@ -115,6 +136,7 @@ export default function LoginModal({ isOpen, closeModal }: ModalProps) {
         <button
           onClick={closeModal}
           className="mt-4 w-full text-gray-500 hover:text-gray-700"
+          disabled={isLoading}
         >
           닫기
         </button>
