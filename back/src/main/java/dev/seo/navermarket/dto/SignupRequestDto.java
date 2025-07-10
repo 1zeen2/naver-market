@@ -8,7 +8,7 @@ import jakarta.validation.constraints.NotNull;
 import jakarta.validation.constraints.Past;
 
 import dev.seo.navermarket.entity.Gender;
-import dev.seo.navermarket.entity.MemberEntity;
+import dev.seo.navermarket.member.domain.MemberEntity;
 import lombok.Getter;
 import lombok.Setter;
 import lombok.ToString;
@@ -16,7 +16,7 @@ import lombok.ToString;
 @Getter
 @Setter
 @ToString
-public class SignupRequestDTO {
+public class SignupRequestDto {
     // @NotBlank: null, 빈 문자열, 공백 문자열만 있는 경우를 모두 허용하지 않음 (String 타입에 사용)
     @NotBlank(message = "아이디는 필수 입력 값입니다.")
     private String userId;

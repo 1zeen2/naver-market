@@ -2,15 +2,15 @@ package dev.seo.navermarket.validator;
 
 import org.springframework.stereotype.Component;
 
-import dev.seo.navermarket.dao.MemberRepositoryDAO;
-import dev.seo.navermarket.entity.MemberEntity;
+import dev.seo.navermarket.member.domain.MemberEntity;
+import dev.seo.navermarket.repository.MemberRepository;
 import lombok.RequiredArgsConstructor;
 
 @Component
 @RequiredArgsConstructor
 public class SignUpValidator {
 	
-	private final MemberRepositoryDAO memberDAO;
+	private final MemberRepository memberDAO;
 	private final PasswordValidator passwordValidator;
 	
 	// 회원 가입 시 중복 검사

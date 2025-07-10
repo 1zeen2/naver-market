@@ -8,8 +8,8 @@ import org.springframework.transaction.annotation.Transactional;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-import dev.seo.navermarket.dao.MemberRepositoryDAO;
-import dev.seo.navermarket.entity.MemberEntity;
+import dev.seo.navermarket.member.domain.MemberEntity;
+import dev.seo.navermarket.repository.MemberRepository;
 import dev.seo.navermarket.service.MemberService;
 import dev.seo.navermarket.service.UserPwdAlertService;
 import dev.seo.navermarket.validator.SignUpValidator;
@@ -23,7 +23,7 @@ import lombok.RequiredArgsConstructor;
 public class MemberServiceImpl implements MemberService {
 	
 	private static final Logger log = LoggerFactory.getLogger(MemberServiceImpl.class);
-	private final MemberRepositoryDAO memberDAO;
+	private final MemberRepository memberDAO;
 	private final SignUpValidator signupValidator;
 	private final PasswordEncoder passwordEncoder;
 	private final UserPwdAlertService userPwdAlertService;

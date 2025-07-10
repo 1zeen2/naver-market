@@ -15,8 +15,8 @@ import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RestController;
 
-import dev.seo.navermarket.dto.SignupRequestDTO;
-import dev.seo.navermarket.entity.MemberEntity;
+import dev.seo.navermarket.dto.SignupRequestDto;
+import dev.seo.navermarket.member.domain.MemberEntity;
 import dev.seo.navermarket.service.MemberService;
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
@@ -103,31 +103,31 @@ public class MemberRestController {
 	
 	// 회원 가입 API EndPoint
 	@PostMapping("/signup")
-	public ResponseEntity<String> signup(@Valid @RequestBody SignupRequestDTO signupRequestDTO) {
-		// @Valid 어노테이션이 붙어 있으면, SignupRequestDTO의 유효성 검사가 자동으로 수행됩니다.
+	public ResponseEntity<String> signup(@Valid @RequestBody SignupRequestDto signupRequestDto) {
+		// @Valid 어노테이션이 붙어 있으면, SignupRequestDto의 유효성 검사가 자동으로 수행됩니다.
 		// 만약 유효성 검사에 실패하면, MethodArgumentNotValidException이 발생합니다.
 		
-		// 1. Controller에서 받은 signupRequestDTO의 내용 확인
-		log.info("받은 SignupRequestDTO: {}", signupRequestDTO);
+		// 1. Controller에서 받은 signupRequestDto의 내용 확인
+		log.info("받은 SignupRequestDto: {}", signupRequestDto);
 		
-		// signupRequestDTO.toEntity() 호출 전에, DTO의 내용이 올바른지 확인하는 것이 중요합니다.
-        // 만약 DTO 자체가 null이거나 DTO 필드들이 null이면, toEntity() 결과도 null이 될 수 있습니다.
-        if (signupRequestDTO == null) {
-            log.error("SignupRequestDTO가 비어있음. 클라이언트의 요청 데이터를 확인하세요..");
+		// signupRequestDto.toEntity() 호출 전에, Dto의 내용이 올바른지 확인하는 것이 중요합니다.
+        // 만약 Dto 자체가 null이거나 Dto 필드들이 null이면, toEntity() 결과도 null이 될 수 있습니다.
+        if (signupRequestDto == null) {
+            log.error("SignupRequestDto가 비어있음. 클라이언트의 요청 데이터를 확인하세요..");
             return ResponseEntity.badRequest().body("회원 가입 요청 데이터가 비어있습니다.");
         }
 		
-        // 2. signupRequestDTO.toEntity()가 반환하는 MemberEntity 객체를 'memberEntity' 변수에 저장
+        // 2. signupRequestDto.toEntity()가 반환하는 MemberEntity 객체를 'memberEntity' 변수에 저장
         // 이 변수를 사용하여 로그를 찍고, null 검사를 수행하며, Service로 전달해야 합니다.
-        MemberEntity memberEntity = signupRequestDTO.toEntity();
+        MemberEntity memberEntity = signupRequestDto.toEntity();
         
         // 3. toEntity() 메서드가 변환한 Member 엔티티 객체의 내용 확인
         // 이 엔티티 객체는 데이터베이스에 저장될 최종 형태이므로, 이 단계에서 데이터가 비어있다면
-        // toEntity() 메서드에 문제가 있거나, signupRequestDTO 자체가 비어있는 것입니다.
+        // toEntity() 메서드에 문제가 있거나, signupRequestDto 자체가 비어있는 것입니다.
         log.info("저장하기 전에 변환된 MemberEntity: {}", memberEntity);
 
         if (memberEntity == null) {
-             log.error("변환된 Member Entity가 비어있음. SignupRequestDTO.toEntity() 메서드를 확인할 것.");
+             log.error("변환된 Member Entity가 비어있음. SignupRequestDto.toEntity() 메서드를 확인할 것.");
              return ResponseEntity.internalServerError().body("회원 엔티티 변환에 실패했습니다.");
         }
         

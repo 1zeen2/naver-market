@@ -1,4 +1,4 @@
-package dev.seo.navermarket.entity;
+package dev.seo.navermarket.member.domain;
 
 import java.time.LocalDate;
 import java.time.LocalDateTime;
@@ -12,6 +12,9 @@ import lombok.ToString;
 
 import org.springframework.data.annotation.CreatedDate;
 import org.springframework.data.jpa.domain.support.AuditingEntityListener;
+
+import dev.seo.navermarket.entity.Gender;
+import dev.seo.navermarket.entity.MemberStatus;
 
 /*
  * member_id	int	NO	PRI		auto_increment
@@ -82,7 +85,7 @@ public class MemberEntity {
 	
 	@Enumerated(EnumType.STRING)
 	@Column(name = "status", nullable = false)
-	private Status status;
+	private MemberStatus status;
 	
 	@Column(name = "profile_image")
 	private String profileImage;
@@ -92,7 +95,7 @@ public class MemberEntity {
 	
 	@Builder
     public MemberEntity(Long memberId, String userId, String userPwd, String email, String phone, String userName,
-                        LocalDate dateOfBirth, Gender gender, String address, String detailAddress, Status status,
+                        LocalDate dateOfBirth, Gender gender, String address, String detailAddress, MemberStatus status,
                         LocalDateTime lastLogin, String profileImage, LocalDateTime userPwdChangedAt) {
 		this.memberId = memberId;
         this.userId = userId;
@@ -104,7 +107,7 @@ public class MemberEntity {
         this.gender = gender;
         this.address = address;
         this.detailAddress = detailAddress;
-        this.status = Status.SUSPENDED;
+        this.status = MemberStatus.SUSPENDED;
         this.lastLogin = lastLogin;
         this.profileImage = profileImage;
         this.userPwdChangedAt = userPwdChangedAt;
