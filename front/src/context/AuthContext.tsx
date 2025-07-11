@@ -26,8 +26,6 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   const queryClient = useQueryClient();
   const router = useRouter();
 
-  const API_BASE_URL = process.env.NEXT_PUBLIC_API_BASE_URL || 'http://localhost:80/api';
-
   // 초기 로드 시 localStorage에서 토큰 확인
   useEffect(() => {
     const storedToken = localStorage.getItem('authToken');
@@ -43,33 +41,24 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     queryKey: ['currentUser', token],
     queryFn: async () => {
       if (!token) return null;
-      // 실제 API 호출 예시:
-      //  const response = await fetch('/api/auth/me'), {headeers: { Authorization: `Bearer ${token}` }})
-      //    if (!response.ok) {localStroage.removeItem('authToken'); 토큰 무효화 시 제거
-      //      setTokem(null) return null
-      //    }
-      // const userDate = await response.json(); return userData;
 
-      // 현재는 더미 사용자 정보 반환
-      // 실제 JWT 토큰은 헤더와 페이로드가 base64로 인코딩 되어 .으로 구분됨
-      // 더미 토큰이 dummy_jwt_token_for_userId 형태로 가정하였기 때문에 해당 파싱 로직은 실패할 수 있음
-      // 백엔드에서 실제 JWT를 반환하도록 구현하면 이 부분도 실제 JWT 파싱 로직으로 변경해야 함
-
+      // 실제 API 호출 예시
       try {
-        // 더미 토큰이 'dummy_jwt_token_for_userId' 형태이므로, userId를 직접 추출합니다.
-        // 실제 JWT라면 'token.split('.')[1] 후 'atob 디코딩이 필요합니다.
-        // 현재 더미 토큰은 JWT 형식이 아니므로, 간단한 파싱으로 userId를 가져옵니다.
+        const response = await fetch(`/api/auth/me`, {
+          headers: { Authorization: `Bearer ${token}`}
+        });
 
-        const userIdFromToken = token?.replace('dummy_jwt_token_for_', '');
-        // memberId와 userName은 실제 백엔드 응답에서 가져와야 하지만 현재는 더미 토큰에서 userId만 추출해서 사용
-        // 실제 JWT를 사용하게 되면 JWT 페이로드에서 memberId와 userName을 디코딩하여 사용해야 합니다.
-        return {
-          memberId: 1, // 더미 값, 실제로는 JWT 페이로드에서 추출
-          userId: userIdFromToken,
-          userName: userIdFromToken,
-        };
+        if (!response.ok) {
+          console.error("토큰 유효성 검사 실패 또는 사용자 정포 페칭 에러: ", response.status, response.statusText);
+          localStorage.removeItem('authToken'); // 토큰 무효화 시 제거
+          setToken(null);
+          return null;
+        }
+        const userData = await response.json();
+        return userData;
+
       } catch (e) {
-        console.error("유효하지 않은 토큰 형식 파싱 에러: ", e);
+        console.error("사용자 정보 페칭 중 에러 발생: ", e);
         localStorage.removeItem('authToken');
         setToken(null);
         return null;
@@ -83,7 +72,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   // 로그인 뮤테이션
   const loginMutation = useMutation({
     mutationFn: async ({ userId, userPwd }: { userId: string; userPwd: string }) => {
-      const response = await fetch(`${API_BASE_URL}/auth/login`, { 
+      const response = await fetch(`/api/auth/login`, { 
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ userId, userPwd }),

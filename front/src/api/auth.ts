@@ -1,7 +1,5 @@
-import { SignupApiRequest, CheckAvailabilityResponse } from "@/types/member";
+import { SignupApiRequest, CheckAvailabilityResponse, SignupSuccessResponse } from "@/types/member";
 import { customFetch } from "@/utils/customFetch";
-
-const API_BASE_URL = process.env.NEXT_PUBLIC_API_BASE_URL || 'http://localhost:80/api';
 
 /**
  * @file 인증 관련 API 호출을 위한 순수 함수들을 정의합니다.
@@ -18,7 +16,7 @@ const API_BASE_URL = process.env.NEXT_PUBLIC_API_BASE_URL || 'http://localhost:8
 export const checkUserId = async (userId: string): Promise<CheckAvailabilityResponse> => {
   // customFetch는 baseURL을 기준으로 상대 경로를 처리하므로, 완전한 경로 지정
   return customFetch<CheckAvailabilityResponse>(
-    `${API_BASE_URL}/member/check-id?userId=${userId}`,
+    `/api/member/check-id?userId=${userId}`,
     { method: 'GET' }
   );
 };
@@ -31,7 +29,7 @@ export const checkUserId = async (userId: string): Promise<CheckAvailabilityResp
  */
 export const checkEmail = async (email: string): Promise<CheckAvailabilityResponse> => {
   return customFetch<CheckAvailabilityResponse>(
-    `${API_BASE_URL}/member/check-email?email=${encodeURIComponent(email)}`,
+    `/api/member/check-email?email=${encodeURIComponent(email)}`,
     { method: 'GET' }
   );
 };
@@ -39,9 +37,9 @@ export const checkEmail = async (email: string): Promise<CheckAvailabilityRespon
 /**
  * 사용자 회원가입 API를 호출합니다.
  * @param {SignupApiRequest} userData - 회원가입 요청 데이터
- * @returns {Promise<any>} API 응답 데이터 (성공 시)
+ * @returns {Promise<SignupSuccessResponse>} API 응답 데이터 (성공 시)
  * @throws {Error} API 호출 실패 시 에러 발생
  */
-export const signupUser = async (userData: SignupApiRequest): Promise<any> => {
-  return customFetch(`${API_BASE_URL}/signup`, { method: 'POST', body: userData });
+export const signupUser = async (userData: SignupApiRequest): Promise<SignupSuccessResponse> => {
+  return customFetch(`/api/auth/signup`, { method: 'POST', body: userData });
 };
