@@ -11,6 +11,6 @@ package dev.seo.navermarket.entity;
 public enum ProductStatus {
     ACTIVE,
     RESERVED,
-    SOLD_OUT, // ✨ SOLD__OUT 오타 수정
+    SOLD_OUT,
     DELETED
 }

@@ -1,13 +1,16 @@
 package dev.seo.navermarket.repository;
 
+import org.springframework.data.domain.Page;
+import org.springframework.data.domain.Pageable;
 import org.springframework.data.jpa.repository.JpaRepository;
 import org.springframework.data.jpa.repository.Query;
+import org.springframework.data.repository.query.Param;
 import org.springframework.stereotype.Repository;
 
 import dev.seo.navermarket.entity.ProductStatus;
 import dev.seo.navermarket.product.domain.ProductEntity;
 
-import java.util.List;
+import java.util.Optional;
 
 
 /**
@@ -20,56 +23,58 @@ import java.util.List;
 public interface ProductRepository extends JpaRepository<ProductEntity, Long>{
 
 	/**
-     * @brief 특정 상태의 모든 상품을 최신 등록일 기준으로 내림차순 정렬하여 조회합니다.
-     * 이 메서드는 특정 상태 (ACTIVE, RESERVED, SOLD_OUT 등) 필터링 버튼 클릭 시 사용됩니다.
-     * @param status 조회할 상품 상태
-     * @return 해당 상태의 상품 엔티티 리스트
+     * @brief 다양한 조건으로 상품 목록을 조회하고 페이지네이션을 지원합니다.
+     * DELETED 상태를 제외하며, 대표 이미지(imageOrder=0)를 함께 가져옵니다.
+     *
+     * @param status 상품 상태 필터링 (선택 사항)
+     * @param categoryName 카테고리 필터링 (선택 사항)
+     * @param memberId 판매자 ID 필터링 (선택 사항)
+     * @param title 제목 검색 (부분 일치, 선택 사항)
+     * @param pageable 페이지네이션 및 정렬 정보
+     * @return 조건에 맞는 ProductEntity 페이지 (대표 이미지 포함)
      */
-    List<ProductEntity> findByStatusOrderByCreatedAtDesc(ProductStatus status);
-
-    /**
-     * @brief 특정 카테고리에 속하며 특정 상태의 상품을 최신 등록일 기준으로 내림차순 정렬하여 조회합니다.
-     * @param category 조회할 카테고리
-     * @param status 상품 상태
-     * @return 특정 카테고리의 해당 상태 상품 엔티티 리스트
+	@Query("SELECT p FROM ProductEntity p LEFT JOIN FETCH p.detailImages di " +
+	           "WHERE (:status IS NULL OR p.status = :status) AND " +
+	           "(:categoryName IS NULL OR p.category = :categoryName) AND " +
+	           "(:memberId IS NULL OR p.memberId = :memberId) AND " +
+	           "(:title IS NULL OR p.title LIKE %:title%) AND " +
+	           "p.status <> 'DELETED' AND (di.imageOrder = 0 OR di.detailImageId IS NULL)"
+	           )
+	Page<ProductEntity> findProductsByCriteria(
+            @Param("status") ProductStatus status,
+            @Param("categoryName") String categoryName,
+            @Param("memberId") Long memberId,
+            @Param("title") String title,
+            Pageable pageable
+            );
+			
+	/**
+     * @brief 메인/검색 페이지 기본 표시용: 상품 상태 우선순위 (ACTIVE/RESERVED 우선, SOLD_OUT 다음) 및 최신 등록일 기준으로 정렬된
+     * 모든 상품 목록을 조회합니다. DELETED 상태는 제외되며, 대표 이미지(imageOrder=0)를 함께 가져옵니다.
+     *
+     * @param pageable 페이지네이션 정보 (정렬은 쿼리 내에서 정의)
+     * @return 정렬된 ProductEntity 페이지 (대표 이미지 포함)
      */
-    List<ProductEntity> findByCategoryAndStatusOrderByCreatedAtDesc(String category, ProductStatus status);
-
-    /**
-     * @brief 특정 판매자의 특정 상태의 모든 상품을 최신 등록일 기준으로 내림차순 정렬하여 조회합니다.
-     * @param memberId 판매자 아이디 번호 (member 테이블의 member_id)
-     * @param status 상품 상태
-     * @return 특정 판매자의 해당 상태 상품 엔티티 리스트
+	@Query("SELECT p FROM ProductEntity p LEFT JOIN FETCH p.detailImages di " +
+	           "WHERE p.status <> 'DELETED' AND (di.imageOrder = 0 OR di.detailImageId IS NULL) ORDER BY " +
+	           "CASE p.status " +
+	           "WHEN 'ACTIVE' THEN 1 " +
+	           "WHEN 'RESERVED' THEN 2 " +
+	           "WHEN 'SOLD_OUT' THEN 3 " +
+	           "ELSE 4 END, " +
+	           "p.createdAt DESC"
+	           )
+	    Page<ProductEntity> findAllActiveAndOrdered(Pageable pageable);
+	
+	/**
+     * @brief 특정 상품 ID로 상품 상세 정보를 조회합니다.
+     * 해당 상품의 모든 상세 이미지(imageOrder 순서대로)를 함께 Fetch Join하여 가져옵니다.
+     *
+     * @param productId 조회할 상품의 고유 ID
+     * @return 조회된 ProductEntity (Optional로 감싸져 반환), 상품을 찾을 수 없으면 Optional.empty()
      */
-    List<ProductEntity> findByMemberIdAndStatusOrderByCreatedAtDesc(Long memberId, ProductStatus status);
-
-    /**
-     * @brief 특정 제목이 포함되어있으며 특정 상태의 모든 상품을 최신 등록일 기준으로 내림차순하여 조회합니다.
-     * @param title 제목 (부분 일치 검색)
-     * @param status 상품 상태
-     * @return 특정 제목이 포함된 상품 엔티티 리스트
-     */
-    List<ProductEntity> findByTitleContainingAndStatusOrderByCreatedAtDesc(String title, ProductStatus status);
-
-    /**
-     * @brief 메인 페이지 기본 표시용: DELETED 상태를 제외한 모든 상품을 최신 등록일 기준으로 내림차순 정렬하여 조회합니다.
-     * @return DELETED를 제외한 모든 상품 엔티티 리스트 (최신순)
-     */
-    List<ProductEntity> findByStatusIsNotOrderByCreatedAtDesc(ProductStatus status);
+    @Query("SELECT p FROM ProductEntity p LEFT JOIN FETCH p.detailImages di " +
+           "WHERE p.productId = :productId ORDER BY di.imageOrder ASC")
+    Optional<ProductEntity> findByIdWithDetailImages(@Param("productId") Long productId);
     
-    /**
-     * @brief 검색/카테고리 페이지 기본 표시용: 상품 상태를 ACTIVE/RESERVED 우선 (동일 우선순위), 그 다음 SOLD_OUT 순으로 정렬하고,
-     * 각 그룹 내에서는 최신 등록일 기준으로 내림차순 정렬하여 모든 상품을 조회합니다. DELETED 상태는 제외됩니다.
-     * @return 정렬된 상품 엔티티 리스트
-     */
-    @Query("SELECT p FROM ProductEntity p " +
-    	   "WHERE p.status IN ('ACTIVE', 'RESERVED', 'SOLD_OUT') " +
-    	   "ORDER BY CASE p.status " +
-    	   "	WHEN 'ACTIVE' THEN 1 " +
-    	   "	WHEN 'RESERVED' THEN 1 " +
-    	   "	WHEN 'SOLD_OUT' THEN 2 " +
-    	   "	ELSE 3 " +
-    	   "END, p.createdAt DESC"
-    	   )
-    List<ProductEntity> findAllProductsOrderedByStatusPriorityAndCreatedAtDesc();
 }
