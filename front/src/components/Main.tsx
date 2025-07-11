@@ -3,7 +3,8 @@
 import React from "react";
 import Image from "next/image";
 import { useQuery } from '@tanstack/react-query';
-import { Product} from '@/types/product';
+import { Page, ProductListResponseDto } from '@/types/product';
+import Link from "next/link";
 
 /**
  * @brief 주어진 ISO 8601 형식의 날짜 문자열을 "몇 시간 전", "몇 분 전", "방금 전"과 같은
@@ -65,16 +66,13 @@ function formatTimeAgo(dateString: string): string {
 
 /**
  * @brief 메인 피드에 표시될 상품 목록을 백엔드에서 가져오는 비동기 함수입니다.
- * @returns Promise<Product[]> 상품 객체 배열을 반환합니다.
+ * 백엔드에서 Page<ProductListResponseDto> 형태로 데이터를 반환하므로, 이를 처리합니다.
+ * @returns Promise<Page<ProductListResponseDto>> 상품 객체 배열을 포함하는 Page 객체를 반환합니다.
  * @throws Error API 호출 실패 시 에러를 발생시킵니다.
  */
-async function fetchMainFeedProducts(): Promise<Product[]> {
-  // 환경 변수에서 API 기본 URL을 가져옵니다.
-  // NEXT_PUBLIC_ 접두사는 클라이언트-사이드 코드에서 접근 가능하도록 합니다.
-  // 환경 변수가 설정되지 않았을 경우를 대비하여 기본값(http://localhost:80/api)을 제공합니다.
-  const API_BASE_URL = process.env.NEXT_PUBLIC_API_BASE_URL || 'http://localhost:80/api';
-  const res = await fetch(`${API_BASE_URL}/products/main-feed`);
-  
+async function fetchMainFeedProducts(): Promise<Page<ProductListResponseDto>> {
+  const res = await fetch(`/api/products/main-feed`);
+
   if (!res.ok) {
     throw new Error('Failed to fetch main feed products');
   }
@@ -82,7 +80,7 @@ async function fetchMainFeedProducts(): Promise<Product[]> {
 }
 
 export default function Main() {
-  const { data: products, isLoading, isError, error } = useQuery<Product[], Error>({
+  const { data: productPage, isLoading, isError, error } = useQuery<Page<ProductListResponseDto>, Error>({
     queryKey: ['mainFeedProducts'], // 쿼리 키 : 메인 피드 상품 목록을 나타냄.
     queryFn: fetchMainFeedProducts, // 데이터 페칭 함수
   });
@@ -106,30 +104,32 @@ export default function Main() {
   }
 
   // products가 undefined일 경우 빈 배열로 처리하여 map 오류 방지
-  const productList = products || [];
+  const productList = productPage?.content || [];
 
   return (
     <main className="container mx-auto py-8 px-4">
-      <h2 className="text-3xl font-bold mb-6 text-center">최신 상품</h2>
+      <h2 className="text-3xl font-bold mb-6 text-center">최근 등록된 상품</h2>
       <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-6">
         {productList.length > 0 ? (
-          productList.map((product: Product) => (
-            <div key={product.productId} className="bg-white rounded-lg shadow-md overflow-hidden">
-              <Image 
-                src={product.imageUrl}
-                alt={product.title}
-                width={300}
-                height={200}
-                className="w-full h-48 object-cover"
-                unoptimized={true} // 외부 이미지 URL이므로 최적화 비활성화 (next.config.js 설정 필요 시 제거)
-              />
-              <div className="p-4">
-                <h3 className="font-semibold text-lg mb-1">{product.title}</h3>
-                <p className="text-gray-600 text-sm mb-2">{product.category}</p>
-                <p className="text-gray-500 text-xs mb-2">{formatTimeAgo(product.updatedAt)}</p>
-                <p className="text-xl font-bold text-orange-600">{product.price.toLocaleString()}원</p>
+          productList.map((product: ProductListResponseDto) => (
+            <Link key={product.productId} href={`/products/${product.productId}`} passHref>
+              <div key={product.productId} className="bg-white rounded-lg shadow-md overflow-hidden">
+                <Image 
+                  src={product.mainImageUrl}
+                  alt={product.title}
+                  width={300}
+                  height={200}
+                  className="w-full h-48 object-cover"
+                  unoptimized={true} // 외부 이미지 URL이므로 최적화 비활성화 (next.config.js 설정 필요 시 제거)
+                />
+                <div className="p-4">
+                  <h3 className="font-semibold text-lg mb-1">{product.title}</h3>
+                  <p className="text-gray-600 text-sm mb-2">{product.category}</p>
+                  <p className="text-gray-500 text-xs mb-2">{formatTimeAgo(product.updatedAt)}</p>
+                  <p className="text-xl font-bold text-orange-600">{product.price.toLocaleString()}원</p>
+                </div>
               </div>
-            </div>
+            </Link>
           ))
         ) : (
           <div className="col-span-full text-center text-gray-500 text-lg">
@@ -137,8 +137,14 @@ export default function Main() {
           </div>
         )}
       </div>
-      {/* 현재는 페이지네이션이 백엔드에서 List로 반환되므로 프론트엔드에서 직접 구현하기 어렵습니다. */}
-      {/* 백엔드 ProductController의 getMainFeedProducts()를 Page<ProductEntity>로 변경하면 페이지네이션 가능합니다. */}
+      {productPage && productPage.totalPages > 1 && (
+        <div className="flex justify-center mt-8">
+          {/* 실제 페이지네이션 로직 (버튼 클릭 시 page 파라미터 변경하여 useQuery 재호출 등) 필요 */}
+          <p className="text-gray-600">
+            페이지 {productPage.number + 1} / {productPage.totalPages}
+          </p>
+        </div>
+      )}
     </main>
   );
 }
