@@ -40,6 +40,15 @@ export interface CheckAvailabilityResponse {
   message?: string; 
 }
 
+// 회원 가입 성공 시 백엔드에서 반환하는 응답 데이터 타입 정의
+// 백엔드의 SignupResponseDto에 맞춰 수정해야 함
+export interface SignupSuccessResponse {
+  memberId?: number;
+  userId?: string;
+  userName: string;
+  message: string;
+}
+
 // 폼 유효성 검사 에러 메시지 타입
 export type FormErrors<T> = {
   [K in keyof T]?: string; // T의 모든 키에 대해 optional string 타입

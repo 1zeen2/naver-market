@@ -241,6 +241,7 @@ function SignupForm() {
 
     try {
       await checkUserIdMutation.mutateAsync(currentUserId);
+    // eslint-disable-next-line @typescript-eslint/no-unused-vars
     } catch (error) {
       // 에러는 useMutation onError 및 useEffect에서 처리되므로 여기서는 추가 로직 불필요
     }
@@ -271,7 +272,8 @@ function SignupForm() {
 
     try {
       await checkEmailMutation.mutateAsync(fullEmail);
-    } catch (error) {
+    // eslint-disable-next-line @typescript-eslint/no-unused-vars
+    } catch (_error) {
       // 에러는 useMutation onError 및 useEffect에서 처리되므로 여기서는 추가 로직 불필요
     }
   },
@@ -316,7 +318,6 @@ function SignupForm() {
     // 3. 회원가입 API 호출 (TanStack Query의 mutateAsync 사용)
     try {
       await signupMutation.mutateAsync(signupData);
-      alert('회원 가입에 성공했습니다!'); // 커스텀 모달 사용을 고려하세요 (alert 대신)
       resetForm(); // 폼 데이터 초기화
       router.push('/'); // 성공 시 메인 페이지로 이동
     } catch (error) {
@@ -371,8 +372,10 @@ function SignupForm() {
               {signupMutation.error?.message || '회원가입 중 알 수 없는 오류가 발생했습니다.'}
             </p>
           )}
-          {signupMutation.isSuccess && (
-            <p className="text-green-600 text-center">회원가입에 성공했습니다!</p>
+          {signupMutation.isSuccess && signupMutation.data && (
+            <p className="text-green-600 text-center">
+              {signupMutation.data.message}
+            </p>
           )}
           {errors.form && <p className="text-red-500 text-center">{errors.form}</p>}
 
