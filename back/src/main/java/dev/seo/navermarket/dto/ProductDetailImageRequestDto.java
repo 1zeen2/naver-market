@@ -23,4 +23,6 @@ public class ProductDetailImageRequestDto {
 	
 	@NotBlank(message = "이미지 등록은 필수 입니다.")
 	private String imageUrl;
+	
+	private int imageOrder;
 }

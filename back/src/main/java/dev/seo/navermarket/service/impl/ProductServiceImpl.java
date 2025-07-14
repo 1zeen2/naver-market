@@ -12,6 +12,9 @@ import dev.seo.navermarket.repository.ProductRepository;
 import dev.seo.navermarket.repository.ProductDetailImageRepository;
 import dev.seo.navermarket.service.ProductService; // ProductService 인터페이스 임포트
 import lombok.RequiredArgsConstructor;
+
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.PageImpl;
 import org.springframework.data.domain.PageRequest;
@@ -20,6 +23,7 @@ import org.springframework.data.domain.Sort;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
+import java.time.LocalDateTime;
 import java.util.List;
 import java.util.Optional;
 import java.util.stream.Collectors;
@@ -35,6 +39,8 @@ import java.util.stream.Collectors;
 @RequiredArgsConstructor // final 필드에 대한 생성자를 자동으로 생성하여 의존성 주입 (ProductRepository, ProductDetailImageRepository)
 @Transactional(readOnly = true) // 클래스 레벨에서 모든 메서드에 읽기 전용 트랜잭션을 적용합니다.
 public class ProductServiceImpl implements ProductService {
+	
+	private static final Logger log = LoggerFactory.getLogger(ProductServiceImpl.class);
 
     private final ProductRepository productRepository;
     private final ProductDetailImageRepository productDetailImageRepository;
@@ -138,9 +144,17 @@ public class ProductServiceImpl implements ProductService {
     @Override
     @Transactional // 쓰기 작업이므로 readOnly = true를 오버라이드하여 트랜잭션 활성화
     public ProductListResponseDto createProduct(ProductCreateRequestDto productDto) {
+    	log.info("상품 등록 요청 수신 - title: {}", productDto.getTitle());
+    	
+    	// DTO의 유효성 검사(@NotNull, @Size(min=1)) 덕분에 detailImages는 항상 비어있지 않음.
+        // 썸네일 이미지(imageOrder=0)가 있는지 확인 (필수 조건)
+        boolean hasThumbnail = productDto.getDetailImages().stream()
+                                .anyMatch(img -> img.getImageOrder() == 0);
+        if (!hasThumbnail) {
+            throw new IllegalArgumentException("상품 썸네일 이미지는 필수입니다.");
+        }
+    				
         // DTO로부터 ProductEntity를 빌드합니다.
-        // memberId는 ProductRequestDto에 포함되어 전달되지만, 실제 운영에서는
-        // 컨트롤러에서 Spring Security 등을 통해 인증된 사용자 ID를 주입하는 것이 일반적입니다.
         ProductEntity product = ProductEntity.builder()
                 .memberId(productDto.getMemberId()) // 컨트롤러에서 설정된 memberId 사용
                 .title(productDto.getTitle())
@@ -149,25 +163,29 @@ public class ProductServiceImpl implements ProductService {
                 .description(productDto.getDescription())
                 .status(productDto.getStatus() != null ? productDto.getStatus() : ProductStatus.ACTIVE) // 기본 상태 ACTIVE
                 .views(productDto.getViews() != null ? productDto.getViews() : 0) // 기본 조회수 0
+                .createdAt(LocalDateTime.now())
+                .updatedAt(LocalDateTime.now())
                 .build();
 
         // ProductEntity를 데이터베이스에 저장하고, 자동 생성된 productId를 포함한 엔티티를 받습니다.
         ProductEntity savedProduct = productRepository.save(product);
+        log.info("상품 저장 완료 - productId: {}", savedProduct.getProductId());
 
         // 상세 이미지 저장 로직
-        if (productDto.getDetailImages() != null && !productDto.getDetailImages().isEmpty()) {
-            for (int i = 0; i < productDto.getDetailImages().size(); i++) {
-                ProductDetailImageRequestDto imageRequest = productDto.getDetailImages().get(i);
-                ProductDetailImage detailImage = ProductDetailImage.builder()
-                        .product(savedProduct) // 저장된 상품 엔티티와 연관 관계 설정
-                        .imageUrl(imageRequest.getImageUrl())
-                        .imageOrder(i) // 리스트의 인덱스를 이미지 순서(0부터 시작)로 사용
-                        .build();
-                savedProduct.addDetailImage(detailImage); // ProductEntity의 detailImages 컬렉션에 추가 (양방향 관계)
-            }
-            // 모든 상세 이미지를 한 번의 배치 작업으로 저장하여 성능을 최적화합니다.
-            productDetailImageRepository.saveAll(savedProduct.getDetailImages());
+        // productDto.getDetailImages()는 @Size(min=1)에 의해 항상 최소 1개 이상 보장됨
+        for (int i = 0; i < productDto.getDetailImages().size(); i++) {
+            ProductDetailImageRequestDto imageRequest = productDto.getDetailImages().get(i);
+            ProductDetailImage detailImage = ProductDetailImage.builder()
+                    .product(savedProduct) // 저장된 상품 엔티티와 연관 관계 설정
+                    .imageUrl(imageRequest.getImageUrl())
+                    .imageOrder(i) // 리스트의 인덱스를 이미지 순서(0부터 시작)로 사용
+                    .build();
+            savedProduct.addDetailImage(detailImage); // ProductEntity의 detailImages 컬렉션에 추가 (양방향 관계)
         }
+        // 모든 상세 이미지를 한 번의 배치 작업으로 저장하여 성능을 최적화합니다.
+        productDetailImageRepository.saveAll(savedProduct.getDetailImages());
+        log.info("{}개의 상세 이미지 저장 완료", savedProduct.getDetailImages().size());
+        
         // 생성된 상품 정보를 DTO로 변환하여 반환합니다.
         return convertToProductListResponseDto(savedProduct);
     }
@@ -176,6 +194,8 @@ public class ProductServiceImpl implements ProductService {
     @Override
     @Transactional // 쓰기 작업이므로 readOnly = true를 오버라이드하여 트랜잭션 활성화
     public ProductListResponseDto updateProduct(Long productId, ProductUpdateRequestDto productDto) {
+    	log.info("상품 업데이트 요청 수신 - productId: {}", productId);
+    	
         // 수정할 상품 엔티티를 조회합니다. 상세 이미지까지 함께 Fetch Join하여 가져옵니다.
         ProductEntity existingProduct = productRepository.findByIdWithDetailImages(productId)
                 .orElseThrow(() -> new RuntimeException("수정할 상품을 찾을 수 없습니다. (ID: " + productId + ")"));
@@ -187,38 +207,45 @@ public class ProductServiceImpl implements ProductService {
         if (productDto.getDescription() != null) existingProduct.setDescription(productDto.getDescription());
         if (productDto.getStatus() != null) existingProduct.setStatus(productDto.getStatus());
         if (productDto.getViews() != null) existingProduct.setViews(productDto.getViews());
+        existingProduct.setUpdatedAt(LocalDateTime.now());
 
         // 상세 이미지 업데이트 로직
-        // 새로운 이미지 목록이 제공된 경우에만 업데이트를 수행합니다.
-        if (productDto.getDetailImages() != null) {
-            // 기존 상세 이미지를 모두 삭제합니다. (orphanRemoval=true 설정으로 DB에서도 삭제)
-            productDetailImageRepository.deleteByProduct_ProductId(existingProduct.getProductId());
-            existingProduct.getDetailImages().clear(); // 엔티티 컬렉션도 비워줍니다.
+        // 기존 상세 이미지를 모두 삭제합니다. (orphanRemoval=true 설정으로 DB에서도 삭제)
+        productDetailImageRepository.deleteByProduct_ProductId(existingProduct.getProductId());
+        existingProduct.getDetailImages().clear(); // 엔티티 컬렉션도 비워줍니다.
 
-            // 새로운 이미지 목록이 비어있지 않다면, 새 이미지들을 저장합니다.
-            if (!productDto.getDetailImages().isEmpty()) {
-                for (int i = 0; i < productDto.getDetailImages().size(); i++) {
-                    ProductDetailImageRequestDto imageRequest = productDto.getDetailImages().get(i);
-                    ProductDetailImage detailImage = ProductDetailImage.builder()
-                            .product(existingProduct)
-                            .imageUrl(imageRequest.getImageUrl())
-                            .imageOrder(i) // 리스트 인덱스를 순서로 사용
-                            .build();
-                    existingProduct.addDetailImage(detailImage); // ProductEntity의 컬렉션에 추가
-                }
-                // 모든 새 상세 이미지를 한 번에 저장합니다.
-                productDetailImageRepository.saveAll(existingProduct.getDetailImages());
-            }
+     // 썸네일 이미지(imageOrder=0)가 있는지 확인 (필수 조건)
+        boolean hasThumbnail = productDto.getDetailImages().stream()
+                                .anyMatch(img -> img.getImageOrder() == 0);
+        if (!hasThumbnail) {
+            throw new IllegalArgumentException("상품 썸네일 이미지는 필수 입니다.");
         }
+        
+        // 새로운 이미지 목록이 비어있지 않다면, 새 이미지들을 저장합니다.
+        for (int i = 0; i < productDto.getDetailImages().size(); i++) {
+            ProductDetailImageRequestDto imageRequest = productDto.getDetailImages().get(i);
+            ProductDetailImage detailImage = ProductDetailImage.builder()
+                    .product(existingProduct)
+                    .imageUrl(imageRequest.getImageUrl())
+                    .imageOrder(i) // 리스트 인덱스를 순서로 사용
+                    .build();
+            existingProduct.addDetailImage(detailImage); // ProductEntity의 컬렉션에 추가
+        }
+        // 모든 새 상세 이미지를 한 번에 저장합니다.
+        productDetailImageRepository.saveAll(existingProduct.getDetailImages());
+        log.info("{}개의 상세 이미지 업데이트 완료.", existingProduct.getDetailImages().size());
+        
         // 변경된 ProductEntity를 저장합니다. (JPA Dirty Checking에 의해 자동 업데이트)
         ProductEntity updatedProduct = productRepository.save(existingProduct);
+        log.info("상품 업데이트 완료 - productId: {}", updatedProduct.getProductId());
         return convertToProductListResponseDto(updatedProduct);
     }
 
-    // 상세 보기 삭제 (soft delete)
+ // 상세 보기 삭제 (soft delete)
     @Override
     @Transactional // 쓰기 작업이므로 readOnly = true를 오버라이드하여 트랜잭션 활성화
     public void deleteProduct(Long productId) {
+        log.info("상품 삭제 요청 수신 - productId: {}", productId);
         // 상품 엔티티를 조회하여 존재 여부를 확인합니다.
         if (!productRepository.existsById(productId)) {
             throw new RuntimeException("삭제할 상품을 찾을 수 없습니다. (ID: " + productId + ")");
@@ -226,6 +253,7 @@ public class ProductServiceImpl implements ProductService {
         // ProductEntity 삭제 시, ProductDetailImage는 cascade = CascadeType.ALL, orphanRemoval = true 설정에 의해
         // 자동으로 연관된 상세 이미지들도 삭제됩니다.
         productRepository.deleteById(productId);
+        log.info("상품 삭제 완료 - productId: {}", productId);
     }
 
     // --- DTO 변환 헬퍼 메서드 ---
@@ -238,12 +266,12 @@ public class ProductServiceImpl implements ProductService {
      * @return ProductListResponseDto
      */
     private ProductListResponseDto convertToProductListResponseDto(ProductEntity productEntity) {
-        // 대표 이미지 URL을 찾습니다. imageOrder가 0인 이미지가 대표 이미지입니다.
+        // 대표 이미지 URL을 ProductDetailImage 컬렉션에서 찾습니다.
         String mainImageUrl = productEntity.getDetailImages().stream()
                 .filter(img -> img.getImageOrder() == 0)
                 .map(ProductDetailImage::getImageUrl)
                 .findFirst()
-                .orElse("https://placehold.co/400x300/CCCCCC/333333?text=No+Image"); // 대표 이미지가 없을 경우 기본 이미지
+                .orElse("https://placehold.co/400x300/CCCCCC/333333?text=No+Image"); // 썸네일이 없을 경우 기본 이미지
 
         return ProductListResponseDto.builder()
                 .productId(productEntity.getProductId())

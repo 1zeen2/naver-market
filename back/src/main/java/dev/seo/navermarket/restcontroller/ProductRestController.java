@@ -14,6 +14,10 @@ import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
 
+import java.io.UnsupportedEncodingException;
+import java.net.URLDecoder;
+import java.net.URLEncoder;
+import java.nio.charset.StandardCharsets;
 import java.util.Arrays;
 import java.util.Optional;
 import java.util.concurrent.TimeUnit;
@@ -108,9 +112,9 @@ public class ProductRestController {
      */
     @GetMapping("/{productId}")
     public ResponseEntity<ProductDetailResponseDto> getProductDetail(
-    		@PathVariable Long productId,HttpServletRequest request, HttpServletResponse response) {
+    		@PathVariable Long productId, HttpServletRequest request, HttpServletResponse response) {
     	
-    	log.info("Request received for product detail: productId={}", productId);
+    	log.info("상품 상세 페이지 조회 요청: productId={}", productId);
     	
     	// 조회수 증가 및 중복 방지 로직
     	processProductView(productId, request, response);
@@ -195,8 +199,15 @@ public class ProductRestController {
                     .filter(cookie -> VIEWED_PRODUCTS_COOKIE_NAME.equals(cookie.getName()))
                     .findFirst();
             if (viewedCookie.isPresent()) {
-                viewedProductsString = viewedCookie.get().getValue();
-                log.debug("Existing '{}' cookie found with value: {}", VIEWED_PRODUCTS_COOKIE_NAME, viewedProductsString);
+            	try {
+            		// 쿠기 값을 읽을 때 URL 디코딩
+            		viewedProductsString = URLDecoder.decode(viewedCookie.get().getValue(), StandardCharsets.UTF_8.toString());
+            		log.debug("Existing '{}' cookie found with decoded value: {})", VIEWED_PRODUCTS_COOKIE_NAME, viewedProductsString);
+            	} catch (UnsupportedEncodingException e) {
+					log.error("Failed to decode cookie value: {}", viewedCookie.get().getValue(), e);
+					// 디코딩 실패 시 빈 문자열로 처리하여 새로 시작하도록 함
+					viewedProductsString = "";
+				}
             } else {
                 log.debug("No existing '{}' cookie found.", VIEWED_PRODUCTS_COOKIE_NAME);
             }
@@ -225,15 +236,19 @@ public class ProductRestController {
                                             String.valueOf(productId) :
                                             viewedProductsString + "," + productId;
 
-            // 새 쿠키 생성 또는 기존 쿠키 업데이트
-            Cookie newCookie = new Cookie(VIEWED_PRODUCTS_COOKIE_NAME, newViewedProductsString);
-            newCookie.setMaxAge((int) TimeUnit.HOURS.toSeconds(VIEW_COUNT_COOKIE_EXPIRATION_HOURS));
-            newCookie.setPath("/");
-            newCookie.setHttpOnly(true); // JavaScript 접근 방지 (보안 강화)
-            // newCookie.setSecure(true); // HTTPS 환경에서만 전송 (HTTPS 사용 시 활성화)
-
-            response.addCookie(newCookie);
-            log.debug("New cookie '{}' set with value: {}", VIEWED_PRODUCTS_COOKIE_NAME, newViewedProductsString);
+            // 쿠키 값을 저장할 때 URL 인코딩
+            try {
+            	String encodedValue = URLEncoder.encode(newViewedProductsString, StandardCharsets.UTF_8.toString());
+            	Cookie newCookie = new Cookie (VIEWED_PRODUCTS_COOKIE_NAME, encodedValue);
+            	newCookie.setMaxAge((int) TimeUnit.HOURS.toSeconds(VIEW_COUNT_COOKIE_EXPIRATION_HOURS));
+            	newCookie.setPath("/");
+            	newCookie.setHttpOnly(true);
+            	
+            	response.addCookie(newCookie);
+            	log.debug("New cookie '{}' set with encoded value: {}", VIEWED_PRODUCTS_COOKIE_NAME, encodedValue);
+            } catch (UnsupportedEncodingException e) {
+            	log.error("Failed to encode cookie value: {}", newViewedProductsString, e);
+            }
         } else {
             log.info("Product ID {} already viewed, not incrementing view count.", productId);
         }

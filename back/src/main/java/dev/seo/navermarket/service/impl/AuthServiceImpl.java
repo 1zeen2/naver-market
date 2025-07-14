@@ -9,6 +9,7 @@ import dev.seo.navermarket.dto.LoginRequestDto;
 import dev.seo.navermarket.dto.LoginResponseDto;
 import dev.seo.navermarket.dto.SignupRequestDto;
 import dev.seo.navermarket.dto.SignupResponseDto;
+import dev.seo.navermarket.jwt.JwtTokenProvider;
 import dev.seo.navermarket.member.domain.MemberEntity;
 import dev.seo.navermarket.repository.MemberRepository;
 import dev.seo.navermarket.service.AuthService;
@@ -27,6 +28,7 @@ public class AuthServiceImpl implements AuthService {
 	
 	private final MemberRepository memberRepository;
 	private final MemberService memberService;
+	private final JwtTokenProvider jwtTokenProvider;
 	
 	private static final Logger log = LoggerFactory.getLogger(AuthServiceImpl.class);
 
@@ -63,17 +65,35 @@ public class AuthServiceImpl implements AuthService {
 	 */
 	@Override
 	public LoginResponseDto login(LoginRequestDto loginRequestDto) {
+		log.info("AuthService: 로그인 요청 수신 - userId: {}", loginRequestDto.getUserId());
 		MemberEntity member = memberRepository.findByUserId(loginRequestDto.getUserId())
-				.orElseThrow(() -> new RuntimeException("사용자를 찾을 수 없습니다."));
+				.orElseThrow(() -> {
+					log.warn("로그인 실패: 사용자를 찾을 수 없습니다. userId={}", loginRequestDto.getUserId());
+					return new RuntimeException("사용자를 찾을 수 없습니다.");
+				});
 		
+		// ✨ 실제 비밀번호 암호화 및 검증 로직이 여기에 들어가야 함.
+        // 현재는 평문 비교이므로, Spring Security의 PasswordEncoder를 사용하여 검증
+        // if (!passwordEncoder.matches(loginRequestDto.getUserPwd(), member.getUserPwd())) {
+        //     log.warn("로그인 실패: 비밀번호 불일치. userId={}", loginRequestDto.getUserId());
+        //     throw new RuntimeException("비밀번호가 일치하지 않습니다.");
+        // }
 		if (!member.getUserPwd().equals(loginRequestDto.getUserPwd())) {
+			log.warn("로그인 실패: 비밀번호 불일치. userId={}", loginRequestDto.getUserId());
 			throw new RuntimeException("비밀번호가 일치하지 않습니다.");
 		}
 		
-		String dummyToken = "dummy_jwt_token_for_" + member.getUserId();
+		
+		// 더미 토큰 대신 실제 JWT 토큰 생성
+		String jwtToken = jwtTokenProvider.generateToken(
+				member.getMemberId(),
+				member.getUserId(),
+				member.getUserName()
+				);
+		log.info("로그인 성공: JWT 토큰 생성 완료. userId={}", member.getUserId());
 		
 		return LoginResponseDto.builder()
-				.token(dummyToken)
+				.token(jwtToken)
 				.memberId(member.getMemberId())
 				.userId(member.getUserId())
 				.userName(member.getUserName())
