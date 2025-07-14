@@ -1,5 +1,5 @@
 import axios, { AxiosError, AxiosResponse } from 'axios';
-import api from '../api/api';
+import api from '@/api/api';
 import { ApiErrorResponse } from '@/types/member';
 
 // T는 API 응답 데이터의 타입 (예: { isAvailable: boolean, message: string })
@@ -27,13 +27,15 @@ export async function customFetch<T = unknown, D = unknown>(
       config.data = body; // Axios는 data 속성으로 body를 보냅니다.
     }
 
-    const response: AxiosResponse<T> = await api.request<T>({ // api(Axios 인스턴스)를 사용하여 요청
+    // api(Axios 인스턴스)를 사용하여 요청함.
+    // api 인스턴스에 설정된 인터셉터가 여기서 작동하여 JWT 토큰을 자동으로 추가
+    const response: AxiosResponse<T> = await api.request<T>({
       url,
       ...config,
     });
 
-    // 성공 응답 처리
-    return response.data; // 응답 본문만 반환
+    // 성공 응답 처리: 응답 본문만 반환
+    return response.data;
   } catch (error: unknown) {
     // AxiosError 타입 가드를 사용하여 에러의 종류를 판별합니다.
     if (axios.isAxiosError(error)) {
