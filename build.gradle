@@ -2,7 +2,7 @@
 // 이 파일은 모든 하위 프로젝트에 공통적으로 적용될 설정을 정의합니다.
 
 plugins {
-    // ✨ 루트 프로젝트 자체에도 Java 플러그인을 적용합니다.
+    // 루트 프로젝트 자체에도 Java 플러그인을 적용합니다.
     // 이렇게 해야 STS가 루트 프로젝트를 Java 프로젝트로 인식하고 .classpath 파일을 생성합니다.
     id 'java'
     // Spring Boot 플러그인은 각 Spring Boot 서브프로젝트에 적용됩니다.
@@ -48,7 +48,7 @@ subprojects {
         testRuntimeOnly 'org.junit.platform:junit-platform-launcher'
     }
 
-    // ✨ 매우 중요: '-parameters' 컴파일러 플래그를 모든 Java 컴파일 작업에 적용합니다.
+    // 매우 중요: '-parameters' 컴파일러 플래그를 모든 Java 컴파일 작업에 적용합니다.
     // 이 설정은 메서드 파라미터 이름을 .class 파일에 포함시켜 Spring이 리플렉션을 통해
     // @RequestParam, @PathVariable 등을 올바르게 인식하도록 합니다.
     tasks.withType(JavaCompile) {
