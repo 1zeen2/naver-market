@@ -1,0 +1,47 @@
+# Back-end (Spring Boot) 관련
+/back/target/
+/back/build/
+/back/.gradle/
+/back/.idea/
+/back/*.iml
+/back/bin/
+/back/tmp/
+/back/logs/
+/back/.project
+/back/.settings/
+/back/.classpath
+/back/.factorypath
+/back/.apt_generated/
+/back/local.properties # 로컬 개발 환경 속성 파일 (있는 경우)
+
+# Front-end (Next.js/Node.js) 관련
+/front/node_modules/
+/front/.next/
+/front/out/
+/front/dist/
+/front/npm-debug.log*
+/front/yarn-error.log*
+/front/.eslintcache
+/front/.env.local
+/front/.env.development.local
+/front/.env.production.local
+/front/coverage/ # 테스트 커버리지 보고서 (jest 등)
+
+# 공통 환경 변수 파일 (프로젝트 최상단에 있다면)
+.env
+.env.local
+*.env # 모든 .env 파일
+.secret # 민감한 정보 파일
+
+# IDE 및 OS 관련
+.vscode/ # VS Code 작업 공간 설정 파일 (개인적인 설정이므로 제외, 공유할 설정은 .vscode/settings.json 등 개별적으로 추적)
+.idea/ # IntelliJ IDEA 설정 파일
+*.iml # IntelliJ IDEA 모듈 파일
+.DS_Store # macOS 관련 파일
+Thumbs.db # Windows 미리보기 캐시 파일
+ehthumbs.db # Windows
+Desktop.ini # Windows
+
+# 로그 파일
+*.log
+*.log.*

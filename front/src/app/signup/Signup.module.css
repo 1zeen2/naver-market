@@ -1,0 +1,15 @@
+.signupContainer {
+    padding: 2rem;
+    max-width: 700px;
+    margin: 2rem auto;
+    background-color: #fff;
+    border-radius: 8px;
+    box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+  }
+  
+  .signupContainer h1 {
+    text-align: center;
+    color: #333;
+    margin-bottom: 1.5rem;
+  }
+  
