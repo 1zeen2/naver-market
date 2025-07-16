@@ -42,6 +42,14 @@ Thumbs.db # Windows 미리보기 캐시 파일
 ehthumbs.db # Windows
 Desktop.ini # Windows
 
+# Common build output and IDE files at the root level (추가)
+/.gradle/
+/build/
+/.settings/
+/.classpath
+/.project
+/.idea/
+
 # 로그 파일
 *.log
 *.log.*
