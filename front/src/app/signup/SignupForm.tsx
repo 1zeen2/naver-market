@@ -2,6 +2,8 @@
 
 import React, { useState, useCallback, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
+import { useDispatch } from 'react-redux';
+import { showNotification } from '@/features/notification/notificationSlice';
 
 // --- 커스텀 훅 임포트 ---
 import { useForm } from '@/hooks/useForm';                 // 폼 데이터 상태 관리 커스텀 훅
@@ -26,41 +28,43 @@ const PHONE_PREFIX_OPTIONS = [
   { value: '019', label: '019' }
 ];
 
+
 /**
- * @file 회원가입 폼 컴포넌트
- * @description
- * 이 컴포넌트는 사용자 회원가입을 위한 UI와 클라이언트 측 로직을 담당합니다.
- * 폼 데이터 관리, 실시간 유효성 검사, 아이디/이메일 중복 확인, 주소 검색 연동,
- * 최종 회원가입 API 호출 등 회원가입 플로우의 핵심 기능을 통합하여 제공합니다.
- * TanStack Query를 사용하여 비동기 데이터 페칭 및 상태 관리를 최적화합니다.
- *
- * 🎯 **주요 목표 (Goals):**
- * 1. 사용자에게 직관적이고 피드백이 명확한 회원가입 경험 제공.
- * 2. 외부 훅(useForm, useValidation, useAuthQueries)을 활용하여 관심사를 분리하고 코드 재사용성을 높임.
- * 3. 아이디/이메일 중복 확인 결과 메시지(성공/실패)를 사용자에게 지속적으로 표시하여 편의성 증대.
- * 4. 주소 검색 플로우를 간소화하여 사용자 경험을 최적화.
- *
- * 🛠️ **설계 원칙 (Design Principles):**
- * - **모듈화 (Modularity):** 핵심 폼 로직을 외부 훅으로 분리하여 SignupForm 컴포넌트의 복잡도를 낮춤.
- * - **관심사 분리 (Separation of Concerns):** UI 렌더링, 폼 데이터 관리, 유효성 검사, API 통신 등 각 기능을 전담하는 훅과 컴포넌트 사용.
- * - **상태 관리 명확성 (Clear State Management):** TanStack Query를 활용하여 비동기 상태(로딩, 에러, 데이터), 동기화된 로컬 상태를 효율적으로 관리.
- * - **사용자 경험 (User Experience):** 실시간 유효성 피드백, 지속적인 중복 확인 메시지, 간소화된 주소 검색 제공.
- *
- * 🔗 **관련 파일/컴포넌트 (Related Files/Components):**
- * - `src/app/signup/page.tsx`: 이 컴포넌트를 렌더링하는 상위 페이지.
- * - `src/hooks/useForm.ts`: 폼 데이터 상태 및 handleChange 로직.
- * - `src/hooks/useValidation.ts`: 클라이언트 측 폼 유효성 검사 로직.
- * - `src/hooks/useAuthQueries.ts`: TanStack Query 기반 인증 관련 API 호출 훅.
- * - `src/api/auth.ts`: 실제 인증 API 호출을 위한 순수 함수들.
- * - `src/components/common/AddressSearchButton.tsx`: Daum Postcode API 연동.
- * - `src/components/ui/*.tsx`: 재사용 가능한 UI 컴포넌트 (Input, Select, Button).
- * - `src/types/member.ts`: 회원 관련 데이터 타입 정의.
- * - `src/types/address.d.ts`: Daum Postcode API 관련 타입 정의.
- * - `src/app/layout.tsx`: TanStack Query `QueryClientProvider` 설정.
- */
+ * @file 회원가입 폼 컴포넌트
+ * @description
+ * 이 컴포넌트는 사용자 회원가입을 위한 UI와 클라이언트 측 로직을 담당합니다.
+ * 폼 데이터 관리, 실시간 유효성 검사, 아이디/이메일 중복 확인, 주소 검색 연동,
+ * 최종 회원가입 API 호출 등 회원가입 플로우의 핵심 기능을 통합하여 제공합니다.
+ * TanStack Query를 사용하여 비동기 데이터 페칭 및 상태 관리를 최적화합니다.
+ *
+ * 🎯 **주요 목표 (Goals):**
+ * 1. 사용자에게 직관적이고 피드백이 명확한 회원가입 경험 제공.
+ * 2. 외부 훅(useForm, useValidation, useAuthQueries)을 활용하여 관심사를 분리하고 코드 재사용성을 높임.
+ * 3. 아이디/이메일 중복 확인 결과 메시지(성공/실패)를 사용자에게 지속적으로 표시하여 편의성 증대.
+ * 4. 주소 검색 플로우를 간소화하여 사용자 경험을 최적화.
+ *
+ * 🛠️ **설계 원칙 (Design Principles):**
+ * - **모듈화 (Modularity):** 핵심 폼 로직을 외부 훅으로 분리하여 SignupForm 컴포넌트의 복잡도를 낮춤.
+ * - **관심사 분리 (Separation of Concerns):** UI 렌더링, 폼 데이터 관리, 유효성 검사, API 통신 등 각 기능을 전담하는 훅과 컴포넌트 사용.
+ * - **상태 관리 명확성 (Clear State Management):** TanStack Query를 활용하여 비동기 상태(로딩, 에러, 데이터), 동기화된 로컬 상태를 효율적으로 관리.
+ * - **사용자 경험 (User Experience):** 실시간 유효성 피드백, 지속적인 중복 확인 메시지, 간소화된 주소 검색 제공.
+ *
+ * 🔗 **관련 파일/컴포넌트 (Related Files/Components):**
+ * - `src/app/signup/page.tsx`: 이 컴포넌트를 렌더링하는 상위 페이지.
+ * - `src/hooks/useForm.ts`: 폼 데이터 상태 및 handleChange 로직.
+ * - `src/hooks/useValidation.ts`: 클라이언트 측 폼 유효성 검사 로직.
+ * - `src/hooks/useAuthQueries.ts`: TanStack Query 기반 인증 관련 API 호출 훅.
+ * - `src/api/auth.ts`: 실제 인증 API 호출을 위한 순수 함수들.
+ * - `src/components/common/AddressSearchButton.tsx`: Daum Postcode API 연동.
+ * - `src/components/ui/*.tsx`: 재사용 가능한 UI 컴포넌트 (Input, Select, Button).
+ * - `src/types/member.ts`: 회원 관련 데이터 타입 정의.
+ * - `src/types/address.d.ts`: Daum Postcode API 관련 타입 정의.
+ * - `src/app/layout.tsx`: TanStack Query `QueryClientProvider` 설정.
+ */
 
 function SignupForm() {
   const router = useRouter();
+  const dispatch = useDispatch();
 
   // --- 폼 데이터 관리 ---
   const { formData, handleChange: baseHandleChange, setFormData, resetForm } = useForm<SignupFormData>({
@@ -317,14 +321,26 @@ function SignupForm() {
 
     // 3. 회원가입 API 호출 (TanStack Query의 mutateAsync 사용)
     try {
-      await signupMutation.mutateAsync(signupData);
-      resetForm(); // 폼 데이터 초기화
-      router.push('/'); // 성공 시 메인 페이지로 이동
+      await signupMutation.mutateAsync(signupData, {
+        onSuccess: (data) => {
+          resetForm(); // 폼 데이터 초기화
+          // Redux 액션을 dispatch하여 성공 알림 메시지를 전역 상태에 저장
+          dispatch(showNotification({ message: data.message || '회원 가입이 성공적으로 완료되었습니다!', type: 'success'}));
+          router.push('/'); // 성공 시 메인 페이지로 이동
+        },
+        onError: (error) => {
+          // 에러는 useMutation onError에서 처리되지만, 여기서 추가 UI 피드백 가능
+          // Redux 액션을 디스패치하여 에러 알림 메시지를 전역 상태에 저장
+          dispatch(showNotification({ message: error.message || '회원 가입 중 알 수 없는 오류가 발생하였습니다.', type: 'error'}));
+          setErrors(prev => ({ ...prev, form: error.message || '회원 가입 중 알 수 없는 오류가 발생하였습니다.'}));
+        }
+      });
     } catch (error) {
-      // 에러는 useMutation onError에서 처리되지만, 여기서 추가 UI 피드백 가능
-      setErrors(prev => ({ ...prev, form: error instanceof Error ? error.message : '회원가입 중 알 수 없는 오류가 발생했습니다.' }));
+      // 이 블럭은 mutateAsync의 onError 콜백에서 이미 처리되므로 일반적으로는 추가적인 에러 처리가 필요 없음.
+      // 하지만 혹시 모를 상황에 대비해 fallback 로직을 유지할 수 있음
+      console.error("Signup submission error: ", error)
     }
-  }, [formData, validateForm, signupMutation, router, setErrors, resetForm, clearFormError]);
+  }, [formData, validateForm, signupMutation, router, setErrors, resetForm, clearFormError, dispatch]);
 
 
   /**
