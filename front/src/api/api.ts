@@ -5,11 +5,7 @@ import axios from "axios";
 // Axios 인스턴스 생성
 // Next.js의 rewrites 설정을 통해 /api 요청은 백엔드 서버로 프록시됩니다.
 const api = axios.create({
-<<<<<<< HEAD
   baseURL: '',
-=======
-  baseURL: '/api',
->>>>>>> 4d505b2aff6a49a7d6bd4034d08618b54258b019
   timeout: 10000, // 요청 타임 아웃 10초
   headers: {
     'Content-Type': 'application/json',
