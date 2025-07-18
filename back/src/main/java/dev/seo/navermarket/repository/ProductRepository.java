@@ -7,8 +7,8 @@ import org.springframework.data.jpa.repository.Query;
 import org.springframework.data.repository.query.Param;
 import org.springframework.stereotype.Repository;
 
-import dev.seo.navermarket.entity.ProductStatus;
 import dev.seo.navermarket.product.domain.ProductEntity;
+import dev.seo.navermarket.product.domain.ProductStatus;
 
 import java.util.Optional;
 
@@ -66,15 +66,7 @@ public interface ProductRepository extends JpaRepository<ProductEntity, Long>{
 	           )
 	    Page<ProductEntity> findAllActiveAndOrdered(Pageable pageable);
 	
-	/**
-     * @brief 특정 상품 ID로 상품 상세 정보를 조회합니다.
-     * 해당 상품의 모든 상세 이미지(imageOrder 순서대로)를 함께 Fetch Join하여 가져옵니다.
-     *
-     * @param productId 조회할 상품의 고유 ID
-     * @return 조회된 ProductEntity (Optional로 감싸져 반환), 상품을 찾을 수 없으면 Optional.empty()
-     */
-    @Query("SELECT p FROM ProductEntity p LEFT JOIN FETCH p.detailImages di " +
-           "WHERE p.productId = :productId ORDER BY di.imageOrder ASC")
-    Optional<ProductEntity> findByIdWithDetailImages(@Param("productId") Long productId);
+	// 특정 상품 ID에 해당하는 모든 상세 이미지를 삭제하는 메서드
+    void deleteByProduct_ProductId(Long productId);
     
 }

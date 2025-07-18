@@ -4,6 +4,7 @@ import java.time.LocalDate;
 import java.time.LocalDateTime;
 import jakarta.persistence.*;
 import lombok.AccessLevel;
+import lombok.AllArgsConstructor;
 import lombok.Builder;
 import lombok.Getter;
 import lombok.NoArgsConstructor;
@@ -12,9 +13,6 @@ import lombok.ToString;
 
 import org.springframework.data.annotation.CreatedDate;
 import org.springframework.data.jpa.domain.support.AuditingEntityListener;
-
-import dev.seo.navermarket.entity.Gender;
-import dev.seo.navermarket.entity.MemberStatus;
 
 /*
  * member_id	int	NO	PRI		auto_increment
@@ -35,11 +33,13 @@ import dev.seo.navermarket.entity.MemberStatus;
 
 @Entity
 @Table(name = "member")
-// @Data는 equals/hashCode에 문제가 생길 수 있다고 하여 Getter/Setter만 사용
+// @Data는 equals/hashCode에 문제가 생길 수 있다고 하여 사용하는 어노테이션을 직접 사용
 @Getter
 @Setter
 @ToString
 @NoArgsConstructor(access = AccessLevel.PROTECTED)
+@AllArgsConstructor(access = AccessLevel.PRIVATE)
+@Builder
 @EntityListeners(AuditingEntityListener.class)
 public class MemberEntity {
 	
@@ -48,32 +48,35 @@ public class MemberEntity {
 	@Column(name = "member_id")
 	private Long memberId;
 	
-	@Column(name = "user_id", nullable = false, unique = true)
+	@Column(name = "user_id", nullable = false, unique = true, length = 100)
 	private String userId;
 	
-	@Column(name = "user_pwd", nullable = false)
+	@Column(name = "user_pwd", nullable = false, length = 255)
 	private String userPwd;
 	
-	@Column(name = "email", nullable = false, unique = true)
+	@Column(name = "email", nullable = false, unique = true, length = 100)
 	private String email;
 	
-	@Column(name = "phone", nullable = false)
+	@Column(name = "phone", nullable = false, length = 20)
 	private String phone;
 	
-	@Column(name = "user_name", nullable = false)
+	@Column(name = "user_name", nullable = false, length = 100)
 	private String userName;
+	
+	@Column(name = "nickname", length = 50)
+	private String nickname;
 	
 	@Column(name = "date_of_birth", nullable = false)
 	private LocalDate dateOfBirth;
 	
 	@Enumerated(EnumType.STRING)
-	@Column(name = "gender", nullable = false)
+	@Column(name = "gender", nullable = false, length = 10)
 	private Gender gender;
 	
-	@Column(name = "address", nullable = false)
+	@Column(name = "address", nullable = false, length = 255)
 	private String address;
 	
-	@Column(name = "detail_address", nullable = false)
+	@Column(name = "detail_address", nullable = false, length = 255)
 	private String detailAddress;
 	
 	@CreatedDate
@@ -84,10 +87,11 @@ public class MemberEntity {
 	private LocalDateTime lastLogin;
 	
 	@Enumerated(EnumType.STRING)
-	@Column(name = "status", nullable = false)
-	private MemberStatus status;
+	@Column(name = "status", nullable = false, length = 20)
+	@Builder.Default
+	private MemberStatus status = MemberStatus.ACTIVE;
 	
-	@Column(name = "profile_image")
+	@Column(name = "profile_image", length = 255)
 	private String profileImage;
 	
 	@Column(name = "user_pwd_changed_at")
@@ -121,5 +125,25 @@ public class MemberEntity {
         if (this.userPwdChangedAt == null) {
             this.userPwdChangedAt = LocalDateTime.now();
         }
+    }
+	
+	// 회원 정보 업데이트
+	public void updateMember(String email, String phone, String userName, String nickname, String address, String detailAddress) {
+        this.email = email;
+        this.phone = phone;
+        this.userName = userName;
+        this.nickname = nickname;
+        this.address = address;
+        this.detailAddress = detailAddress;
+    }
+
+    public void setStatus(MemberStatus status) {
+        this.status = status;
+    }
+
+    // 비밀번호 변경 시 사용
+    public void updateUserPwd(String newPwd) {
+        this.userPwd = newPwd;
+        this.userPwdChangedAt = LocalDateTime.now();
     }
 }

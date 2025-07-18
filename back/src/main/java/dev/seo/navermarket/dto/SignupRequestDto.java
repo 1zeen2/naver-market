@@ -6,8 +6,7 @@ import jakarta.validation.constraints.Email;
 import jakarta.validation.constraints.NotBlank;
 import jakarta.validation.constraints.NotNull;
 import jakarta.validation.constraints.Past;
-
-import dev.seo.navermarket.entity.Gender;
+import dev.seo.navermarket.member.domain.Gender;
 import dev.seo.navermarket.member.domain.MemberEntity;
 import lombok.Getter;
 import lombok.Setter;
@@ -33,6 +32,8 @@ public class SignupRequestDto {
     
     @NotBlank(message = "이름은 필수 입력 값입니다.")
     private String userName;
+    
+    private String nickname;
     
     // @NotNull: null만 허용하지 않음 (객체 타입에 사용, LocalDate는 객체이므로)
     @NotNull(message = "생년월일은 필수 입력 값입니다.")

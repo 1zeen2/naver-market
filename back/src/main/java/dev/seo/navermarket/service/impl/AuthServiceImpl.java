@@ -2,6 +2,7 @@ package dev.seo.navermarket.service.impl;
 
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -26,11 +27,12 @@ import lombok.RequiredArgsConstructor;
 @Transactional(readOnly = true) // 기본적으로 읽기 전용 트랜잭션 설정
 public class AuthServiceImpl implements AuthService {
 	
+	private static final Logger log = LoggerFactory.getLogger(AuthServiceImpl.class);
+	
 	private final MemberRepository memberRepository;
 	private final MemberService memberService;
 	private final JwtTokenProvider jwtTokenProvider;
-	
-	private static final Logger log = LoggerFactory.getLogger(AuthServiceImpl.class);
+	private final PasswordEncoder passwordEncoder;
 
 	/**
      * @brief 사용자 회원가입을 처리합니다.
@@ -72,17 +74,13 @@ public class AuthServiceImpl implements AuthService {
 					return new RuntimeException("사용자를 찾을 수 없습니다.");
 				});
 		
-		// ✨ 실제 비밀번호 암호화 및 검증 로직이 여기에 들어가야 함.
-        // 현재는 평문 비교이므로, Spring Security의 PasswordEncoder를 사용하여 검증
-        // if (!passwordEncoder.matches(loginRequestDto.getUserPwd(), member.getUserPwd())) {
-        //     log.warn("로그인 실패: 비밀번호 불일치. userId={}", loginRequestDto.getUserId());
-        //     throw new RuntimeException("비밀번호가 일치하지 않습니다.");
-        // }
-		if (!member.getUserPwd().equals(loginRequestDto.getUserPwd())) {
+		// BCryptPasswordEncoder의 matches() 메서드를 사용하여 비밀번호를 비교해야 함
+		// 첫 번째 인자: 사용자가 입력한 평문 비밀번호 (loginRequestDto.getUserPwd())
+		// 두 번째 인자: DB에 저장된 해시된 비밀번호 (member.getUserPwd())
+		if (!passwordEncoder.matches(loginRequestDto.getUserPwd(), member.getUserPwd())) {
 			log.warn("로그인 실패: 비밀번호 불일치. userId={}", loginRequestDto.getUserId());
 			throw new RuntimeException("비밀번호가 일치하지 않습니다.");
 		}
-		
 		
 		// 더미 토큰 대신 실제 JWT 토큰 생성
 		String jwtToken = jwtTokenProvider.generateToken(

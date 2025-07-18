@@ -5,20 +5,25 @@ import dev.seo.navermarket.dto.ProductDetailResponseDto;
 import dev.seo.navermarket.dto.ProductListResponseDto;
 import dev.seo.navermarket.dto.ProductUpdateRequestDto;
 import dev.seo.navermarket.service.ProductService;
+import dev.seo.navermarket.security.CustomUserDetails;
+import jakarta.persistence.EntityNotFoundException;
 import jakarta.servlet.http.Cookie;
 import jakarta.servlet.http.HttpServletRequest;
 import jakarta.servlet.http.HttpServletResponse;
 import lombok.RequiredArgsConstructor;
-import org.springframework.data.domain.Page; // Page 임포트
+import org.springframework.data.domain.Page;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
+import org.springframework.security.core.annotation.AuthenticationPrincipal;
 import org.springframework.web.bind.annotation.*;
+import org.springframework.web.multipart.MultipartFile;
 
 import java.io.UnsupportedEncodingException;
 import java.net.URLDecoder;
 import java.net.URLEncoder;
 import java.nio.charset.StandardCharsets;
 import java.util.Arrays;
+import java.util.List;
 import java.util.Optional;
 import java.util.concurrent.TimeUnit;
 
@@ -53,18 +58,20 @@ public class ProductRestController {
      * GET /api/products/main-feed
      * @param page 페이지 번호 (기본값 0)
      * @param size 페이지 크기 (기본값 10)
+     * @param sortBy 정렬 기준 필드 (기본값 "createdAt")
+     * @param direction 정렬 방향 (기본값 "desc")
      * @return ResponseEntity<Page<ProductListResponseDto>> 상품 DTO 페이지 리스트와 HTTP 상태 코드 (200 OK)
      */
 	@GetMapping("/main-feed")
 	public ResponseEntity<Page<ProductListResponseDto>> getMainFeedProducts(
             @RequestParam(defaultValue = "0") int page,
             @RequestParam(defaultValue = "10") int size,
-            @RequestParam(defaultValue = "createdAt") String sortBy, // 기본 정렬 기준
-            @RequestParam(defaultValue = "desc") String direction) { // 기본 정렬 방향
+            @RequestParam(defaultValue = "createdAt") String sortBy,
+            @RequestParam(defaultValue = "desc") String direction) {
         // defaultOrder를 true로 설정하여 메인 페이지용 기본 정렬 로직을 사용하도록 합니다.
         Page<ProductListResponseDto> products = productService.getProducts(
                 page, size, sortBy, direction,
-                null, null, null, null, true); // status, categoryName, memberId, title은 null, defaultOrder는 true
+                null, null, null, null, true);
 		return ResponseEntity.ok(products);
 	}
 	
@@ -90,8 +97,8 @@ public class ProductRestController {
             @RequestParam(defaultValue = "createdAt") String sortBy,
             @RequestParam(defaultValue = "desc") String direction,
             @RequestParam(required = false) String status,
-            @RequestParam(required = false) String categoryName,
             @RequestParam(required = false) Long memberId,
+            @RequestParam(required = false) String categoryName,
             @RequestParam(required = false) String title) {
 
         // defaultOrder를 false로 설정하여 일반 검색/필터링 정렬 로직을 사용하도록 합니다.
@@ -121,8 +128,8 @@ public class ProductRestController {
     	
     	// 상품 상세 정보 조회
         Optional<ProductDetailResponseDto> productDetailDto = productService.getProductDetail(productId);
-        return productDetailDto.map(ResponseEntity::ok) // 상품이 존재하면 200 OK와 DTO 반환
-                               .orElseGet(() -> ResponseEntity.notFound().build()); // 없으면 404 Not Found 반환
+        return productDetailDto.map(ResponseEntity::ok)
+                               .orElseGet(() -> ResponseEntity.notFound().build());
     }
     
     // --- CRUD (Create, Update, Delete) 엔드포인트 ---
@@ -130,50 +137,83 @@ public class ProductRestController {
     /**
      * @brief 새로운 상품을 등록하는 API 엔드포인트입니다.
      * POST /api/products
-     * @param productDto 등록할 상품 정보가 담긴 DTO
-     * @return ResponseEntity<ProductListResponseDto> 등록된 상품 DTO와 HTTP 상태 코드 (201 Created)
+     * @param productDto 등록할 상품 정보가 담긴 DTO (MultipartFile 포함)
+     * @param currentUser 현재 로그인된 사용자 정보 (JWT 토큰에서 추출)
+     * @return ResponseEntity<ProductDetailResponseDto> 등록된 상품 DTO와 HTTP 상태 코드 (201 Created)
      */
-    @PostMapping
-    public ResponseEntity<ProductListResponseDto> createProduct(@RequestBody ProductCreateRequestDto productDto) {
-    	// 실제 애플리케이션에서는 여기서 로그인된 사용자 ID를 productDto.setMemberId()로 설정해야 합니다.
-    	// 예: productDto.setMemberId(securityContext.getAuthentication().getPrincipal().getId());
-    	ProductListResponseDto createdProduct = productService.createProduct(productDto);
-    	// 201 Created 상태 코드와 함께 등록된 상품 정보 반환
-    	return ResponseEntity.status(HttpStatus.CREATED).body(createdProduct);
+    @PostMapping(consumes = {"multipart/form-data"})
+    public ResponseEntity<ProductDetailResponseDto> createProduct(
+            @ModelAttribute ProductCreateRequestDto productDto,
+            @AuthenticationPrincipal CustomUserDetails currentUser
+    ) {
+        // 로그인된 사용자 ID를 CustomUserDetails에서 추출
+        Long sellerId = currentUser.getMemberId(); // CustomUserDetails에 getMemberId() 메서드가 있다고 가정
+        log.info("상품 등록 요청 수신 - 판매자 ID: {}, 제목: {}", sellerId, productDto.getTitle());
+
+        ProductDetailResponseDto createdProduct = productService.createProduct(productDto, sellerId);
+        return ResponseEntity.status(HttpStatus.CREATED).body(createdProduct);
     }
     
     /**
      * @brief 기존 상품 정보를 수정하는 API 엔드포인트입니다.
      * PUT /api/products/{productId}
      * @param productId 수정할 상품의 고유 ID (경로 변수)
-     * @param productDto 수정할 상품 정보가 담긴 DTO (요청 본문)
-     * @return ResponseEntity<ProductListResponseDto> 수정된 상품 DTO와 HTTP 상태 코드 (200 OK 또는 404 Not Found)
+     * @param productDto 수정할 상품 정보가 담긴 DTO (MultipartFile 포함)
+     * @param currentUser 현재 로그인된 사용자 정보 (JWT 토큰에서 추출)
+     * @return ResponseEntity<ProductDetailResponseDto> 수정된 상품 DTO와 HTTP 상태 코드 (200 OK 또는 404 Not Found)
      */
-    @PutMapping("/{productId}")
-    public ResponseEntity<ProductListResponseDto> updateProduct(
-    		@PathVariable Long productId, @RequestBody ProductUpdateRequestDto productDto) {
+    @PutMapping(value = "/{productId}", consumes = {"multipart/form-data"})
+    public ResponseEntity<ProductDetailResponseDto> updateProduct(
+    		@PathVariable Long productId,
+            @ModelAttribute ProductUpdateRequestDto productDto,
+            @AuthenticationPrincipal CustomUserDetails currentUser
+    ) {
+        Long sellerId = currentUser.getMemberId(); // CustomUserDetails에 getMemberId() 메서드가 있다고 가정
+        log.info("상품 업데이트 요청 수신 - 상품 ID: {}, 판매자 ID: {}", productId, sellerId);
+
         try {
-        	ProductListResponseDto updatedProduct = productService.updateProduct(productId, productDto);
+        	ProductDetailResponseDto updatedProduct = productService.updateProduct(productId, productDto, sellerId);
             return ResponseEntity.ok(updatedProduct);
-    	} catch (RuntimeException e) {
+    	} catch (EntityNotFoundException e) {
+            log.warn("상품 수정 실패: 상품을 찾을 수 없습니다. (ID: {})", productId);
     		return ResponseEntity.notFound().build();
-    	}
+    	} catch (SecurityException e) {
+            log.error("상품 수정 권한 없음: {}", e.getMessage());
+            return ResponseEntity.status(HttpStatus.FORBIDDEN).build();
+        } catch (Exception e) {
+            log.error("상품 수정 중 예상치 못한 오류 발생: {}", e.getMessage(), e);
+            return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR).build();
+        }
     }
     
     /**
      * @brief 특정 상품을 삭제(소프트 삭제)하는 API 엔드포인트입니다.
      * DELETE /api/products/{productId}
      * @param productId 삭제할 상품의 고유 ID (경로 변수)
+     * @param currentUser 현재 로그인된 사용자 정보 (JWT 토큰에서 추출)
      * @return ResponseEntity<Void> HTTP 상태 코드 (204 No Content 또는 404 Not Found)
      */
     @DeleteMapping("/{productId}")
-    public ResponseEntity<Void> deleteProduct(@PathVariable Long productId) {
+    public ResponseEntity<Void> deleteProduct(
+            @PathVariable Long productId,
+            @AuthenticationPrincipal CustomUserDetails currentUser
+    ) {
+        Long sellerId = currentUser.getMemberId(); // CustomUserDetails에 getMemberId() 메서드가 있다고 가정
+        log.info("상품 삭제 요청 수신 - 상품 ID: {}, 판매자 ID: {}", productId, sellerId);
+
     	try {
-    		productService.deleteProduct(productId);
-    		return ResponseEntity.noContent().build(); // 204 No Content 상태 코드 반환 (성공적으로 처리되었으나 반환할 본문이 없음)
-    	} catch (RuntimeException e) {
+    		productService.deleteProduct(productId, sellerId);
+    		return ResponseEntity.noContent().build();
+    	} catch (EntityNotFoundException e) {
+            log.warn("상품 삭제 실패: 상품을 찾을 수 없습니다. (ID: {})", productId);
     		return ResponseEntity.notFound().build();
-    	}
+    	} catch (SecurityException e) {
+            log.error("상품 삭제 권한 없음: {}", e.getMessage());
+            return ResponseEntity.status(HttpStatus.FORBIDDEN).build();
+        } catch (Exception e) {
+            log.error("상품 삭제 중 예상치 못한 오류 발생: {}", e.getMessage(), e);
+            return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR).build();
+        }
     }
     
     /**
@@ -202,7 +242,7 @@ public class ProductRestController {
             	try {
             		// 쿠기 값을 읽을 때 URL 디코딩
             		viewedProductsString = URLDecoder.decode(viewedCookie.get().getValue(), StandardCharsets.UTF_8.toString());
-            		log.debug("Existing '{}' cookie found with decoded value: {})", VIEWED_PRODUCTS_COOKIE_NAME, viewedProductsString);
+            		log.debug("Existing '{}' cookie found with decoded value: {}", VIEWED_PRODUCTS_COOKIE_NAME, viewedProductsString);
             	} catch (UnsupportedEncodingException e) {
 					log.error("Failed to decode cookie value: {}", viewedCookie.get().getValue(), e);
 					// 디코딩 실패 시 빈 문자열로 처리하여 새로 시작하도록 함

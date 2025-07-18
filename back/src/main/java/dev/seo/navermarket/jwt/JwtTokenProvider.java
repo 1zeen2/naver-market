@@ -40,6 +40,19 @@ public class JwtTokenProvider {
 	@Value("${jwt.expiration}")
     private long expiration;
 	
+	// secret 변수 실제 값 확인 로직
+	public JwtTokenProvider(@Value("${jwt.secret}") String secret, @Value("${jwt.expiration}") long expiration) {
+		this.secret = secret;
+		this.expiration = expiration;
+		log.info("JWT 시크릿 키 (application.yml): {}", secret);
+		try {
+            byte[] keyBytes = Decoders.BASE64.decode(secret);
+            log.info("디코딩된 JWT 비밀 키 길이: {} bytes ({} bits)", keyBytes.length, keyBytes.length * 8);
+        } catch (IllegalArgumentException e) {
+            log.error("JWT 토큰이 유효하지 않거나 Base64의 길이가 짧은 경우: {}", secret, e);
+        }
+	}
+	
 	// JWT 서명에 사용될 SecretKey 객체 (Base64 디코딩 후 생성)
 	private SecretKey getSigningKey() {
         byte[] keyBytes = Decoders.BASE64.decode(secret);

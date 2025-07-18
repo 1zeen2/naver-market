@@ -3,8 +3,8 @@ package dev.seo.navermarket.dto;
 import java.math.BigDecimal;
 import java.util.List;
 
-import dev.seo.navermarket.entity.ProductStatus;
-import jakarta.validation.Valid;
+import org.springframework.web.multipart.MultipartFile;
+
 import jakarta.validation.constraints.Min;
 import jakarta.validation.constraints.NotBlank;
 import jakarta.validation.constraints.NotNull;
@@ -13,7 +13,6 @@ import lombok.AllArgsConstructor;
 import lombok.Builder;
 import lombok.Getter;
 import lombok.NoArgsConstructor;
-import lombok.Setter;
 import lombok.ToString;
 
 /**
@@ -23,13 +22,13 @@ import lombok.ToString;
  * 상품의 기본 정보와 함께 여러 장의 상세 이미지 정보를 포함합니다.
  */
 @Getter
-@Setter
-@ToString // Lombok: toString() 메서드를 자동으로 생성하여 객체 내용을 쉽게 출력할 수 있게 해줌
+@Builder
 @NoArgsConstructor
 @AllArgsConstructor
-@Builder
+@ToString // Lombok: toString() 메서드를 자동으로 생성하여 객체 내용을 쉽게 출력할 수 있게 해줌
 public class ProductCreateRequestDto {
-	private Long memberId;
+	
+	// memberId는 JWT에서 추출하여 서비스 계층에서 주입. DTO에 포함하지 않음
 	
 	@NotBlank(message = "상품 제목은 필수입니다.")
     private String title;
@@ -44,13 +43,13 @@ public class ProductCreateRequestDto {
 	@NotBlank(message = "상품 설명은 필수입니다.")
     private String description;
 	
-	private ProductStatus status;
-    private Integer views;
+	@NotNull(message = "대표 사진은 필수 입니다.")
+	private MultipartFile mainImage;
 	
-	@Valid
-    @NotNull(message = "상품 이미지는 최소 1장 이상 필수입니다.")
-    @Size(min = 1, message = "상품 이미지는 최소 1장 이상 등록해야 합니다.")
-    private List<ProductDetailImageRequestDto> detailImages;
+	// 거래 희망 지역 필드
+	@NotBlank(message = "거래 희망 지역은 필수 입니다.")
+	private String preferredTradeLocation;
 	
-    // views, status, created_at, updated_at은 백엔드에서 자동 설정되므로 DTO에 포함하지 않음.
+    @Size(max = 9, message = "상품 이미지는 최대 9장까지 등록 가능합니다.")
+    private List<MultipartFile> detailImages;
 }

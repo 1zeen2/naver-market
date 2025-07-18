@@ -1,4 +1,4 @@
-package dev.seo.navermarket.entity;
+package dev.seo.navermarket.member.domain;
 
 public enum MemberStatus {
 	ACTIVE,		// 활성 계정 (정상)

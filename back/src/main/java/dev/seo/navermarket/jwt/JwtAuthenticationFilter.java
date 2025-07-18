@@ -14,7 +14,7 @@ import org.springframework.security.web.authentication.WebAuthenticationDetailsS
 import org.springframework.stereotype.Component;
 import org.springframework.web.filter.OncePerRequestFilter; // 요청당 한 번만 실행되는 필터 임포트
 
-import dev.seo.navermarket.service.CustomUserDetailsService;
+import dev.seo.navermarket.security.CustomUserDetailsService;
 
 import java.io.IOException;
 

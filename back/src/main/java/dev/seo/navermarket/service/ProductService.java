@@ -4,10 +4,7 @@ import dev.seo.navermarket.dto.ProductCreateRequestDto;
 import dev.seo.navermarket.dto.ProductDetailResponseDto;
 import dev.seo.navermarket.dto.ProductListResponseDto;
 import dev.seo.navermarket.dto.ProductUpdateRequestDto;
-import dev.seo.navermarket.entity.ProductStatus;
-import dev.seo.navermarket.product.domain.ProductEntity;
 
-import java.util.List;
 import java.util.Optional;
 
 import org.springframework.data.domain.Page;
@@ -50,19 +47,20 @@ public interface ProductService {
 	Optional<ProductDetailResponseDto> getProductDetail(Long productId);
 	
 	/**
-	 * 특정 상품의 조회수를 1 증가시킵니다.
+	 * @brief 특정 상품의 조회수를 1 증가시킵니다.
 	 * @param productId 조회수를 증가시킬 상품의 고유 ID
 	 */
 	void incrementViewCount(Long productId);
 	
 	/**
      * @brief 새로운 상품을 등록합니다.
-     * 상품의 기본 정보와 함께 상세 이미지 목록을 받아 처리합니다.
-     *
-     * @param productDto 등록할 상품 정보와 이미지 URL 목록이 담긴 DTO (ProductCreateRequestDto)
-     * @return 등록된 상품의 요약 정보 (ProductListResponseDto)
+     * 프론트엔드로부터 받은 상품 생성 요청 DTO와 로그인한 판매자의 ID를 기반으로
+     * 상품 정보를 저장하고 이미지 파일을 처리합니다.
+     * @param requestDto 상품 생성 요청 데이터 (제목, 설명, 가격, 카테고리, 이미지 파일 등)
+     * @param sellerId 상품을 등록하는 판매자의 고유 ID (JWT에서 추출)
+     * @return ProductDetailResponseDto 생성된 상품의 상세 정보가 담긴 응답 DTO
      */
-    ProductListResponseDto createProduct(ProductCreateRequestDto productDto);
+	ProductDetailResponseDto createProduct(ProductCreateRequestDto requestDto, Long sellerId);
     
     /**
      * @brief 기존 상품 정보를 수정합니다.
@@ -70,16 +68,20 @@ public interface ProductService {
      *
      * @param productId 수정할 상품의 고유 ID
      * @param productDto 수정할 상품 정보와 새로운 이미지 URL 목록이 담긴 DTO (ProductUpdateRequestDto)
-     * @return 수정된 상품의 요약 정보 (ProductListResponseDto)
+     * @param sellerId 상품을 수정하는 판매자의 고유 ID (JWT에서 추출)
+     * @return 수정된 상품의 상세 정보 (ProductDetailResponseDto)
      * @throws RuntimeException 해당 ID의 상품을 찾을 수 없을 경우
+     * @throws SecurityException 수정 권한이 없을 경우 (판매자 ID 불일치)
      */
-    ProductListResponseDto updateProduct(Long productId, ProductUpdateRequestDto productDto);
+	ProductDetailResponseDto updateProduct(Long productId, ProductUpdateRequestDto productDto, Long sellerId);
     
     /**
      * @brief 특정 상품을 삭제(소프트 삭제)합니다.
      * 실제 데이터 삭제가 아닌, 상품 상태를 DELETED로 변경합니다.
      * @param productId 삭제할 상품의 고유 ID
+     * @param sellerId 상품을 삭제하는 판매자의 고유 ID (JWT에서 추출)
      * @throws RuntimeException 해당 ID의 상품을 찾을 수 없을 경우
+     * @throws SecurityException 삭제 권한이 없을 경우 (판매자 ID 불일치)
      */
-    void deleteProduct(Long productId);
+    void deleteProduct(Long productId, Long sellerId);
 }

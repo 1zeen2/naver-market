@@ -48,7 +48,7 @@ public interface MemberRepository extends JpaRepository<MemberEntity, Long>	{
      * @param status 조회할 회원 상태
      * @return List<MemberEntity> 해당 상태의 회원 엔티티 리스트
      */
-    List<MemberEntity> findByStatus(dev.seo.navermarket.entity.MemberStatus status); // MemberEntity의 Status Enum 사용
+    List<MemberEntity> findByStatus(dev.seo.navermarket.member.domain.MemberStatus status); // MemberEntity의 Status Enum 사용
     
     // --- 회원 아이디/비밀번호 찾기 기능 (회원 전용 기능) ---
     /**

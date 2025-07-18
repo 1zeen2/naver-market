@@ -1,4 +1,4 @@
-package dev.seo.navermarket.entity;
+package dev.seo.navermarket.member.domain;
 
 public enum Gender {
 	M, // Male

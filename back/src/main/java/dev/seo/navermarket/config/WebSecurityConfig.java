@@ -2,7 +2,7 @@ package dev.seo.navermarket.config;
 
 import dev.seo.navermarket.jwt.JwtAuthenticationFilter; // JWT 인증 필터 임포트
 import dev.seo.navermarket.jwt.JwtTokenProvider; // JWT 토큰 프로바이더 임포트
-import dev.seo.navermarket.service.CustomUserDetailsService;
+import dev.seo.navermarket.security.CustomUserDetailsService;
 import lombok.RequiredArgsConstructor;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;

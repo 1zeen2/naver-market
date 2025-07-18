@@ -1,4 +1,4 @@
-package dev.seo.navermarket.entity;
+package dev.seo.navermarket.product.domain;
 
 /**
  * @file ProductStatus.java
