@@ -5,6 +5,7 @@ import Image from "next/image";
 import { useQuery } from '@tanstack/react-query';
 import { Page, ProductListResponseDto } from '@/types/product';
 import Link from "next/link";
+import { customFetch } from "@/utils/customFetch";
 
 /**
  * @brief 주어진 ISO 8601 형식의 날짜 문자열을 "몇 시간 전", "몇 분 전", "방금 전"과 같은
@@ -71,13 +72,13 @@ function formatTimeAgo(dateString: string): string {
  * @throws Error API 호출 실패 시 에러를 발생시킵니다.
  */
 async function fetchMainFeedProducts(): Promise<Page<ProductListResponseDto>> {
-  const res = await fetch(`/api/products/main-feed`);
-
-  if (!res.ok) {
-    throw new Error('Failed to fetch main feed products');
-  }
-  return res.json();
+  // 핵심 수정: customFetch를 사용하여 백엔드로 직접 요청하도록 변경
+  const data = await customFetch<Page<ProductListResponseDto>>(`/api/products/main-feed`, { method: 'GET' });
+  return data;
 }
+
+// 기본 이미지 URL (프로젝트 내에 실제 파일이 있어야 합니다. 예: public/placeholder-image.png)
+const PLACEHOLDER_IMAGE_URL = "/images/placeholder-image.png"; // 적절한 경로로 수정하세요.
 
 export default function Main() {
   const { data: productPage, isLoading, isError, error } = useQuery<Page<ProductListResponseDto>, Error>({
@@ -115,8 +116,8 @@ export default function Main() {
             <Link key={product.productId} href={`/products/${product.productId}`} passHref>
               <div key={product.productId} className="bg-white rounded-lg shadow-md overflow-hidden">
                 <Image 
-                  src={product.mainImageUrl}
-                  alt={product.title}
+                  src={product.mainImageUrl && product.mainImageUrl.trim() !== "" ? product.mainImageUrl : PLACEHOLDER_IMAGE_URL}
+                  alt={product.title || "상품 이미지"}
                   width={300}
                   height={200}
                   className="w-full h-48 object-cover"

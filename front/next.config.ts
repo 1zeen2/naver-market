@@ -18,10 +18,10 @@ const nextConfig: NextConfig = {
   // API 프록시 설정 추가
   async rewrites() {
     return [
-      {
-        source: '/api/:path*', // /api 로 시작하는 모든 요청을
-        destination: 'http://localhost:80/api/:path*', // 백엔드 서버로 프록시
-      },
+      // {
+      //   source: '/api/:path*', // /api 로 시작하는 모든 요청을
+      //   destination: 'http://localhost:80/api/:path*', // 백엔드 서버로 프록시
+      // },
     ];
   },
 };

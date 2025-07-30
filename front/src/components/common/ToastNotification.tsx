@@ -3,7 +3,7 @@
 import React, { useEffect } from "react";
 import { useSelector, useDispatch } from "react-redux";
 import { RootState, AppDispatch } from "@/store";
-import { clearNotification } from "@/features/notification/notificationSlice";
+import { hideNotification } from "@/features/notification/notificationSlice";
 
 /**
  * @file 전역 토스트 알림 컴포넌트
@@ -19,7 +19,7 @@ const ToastNotification: React.FC = () => {
   useEffect(() => {
     if (message) {
       const timer = setTimeout(() => {
-        dispatch(clearNotification());
+        dispatch(hideNotification());
       }, 3000);
 
       // 컴포넌트 언마운트 또는 메시지/ID 변경 시 타이머 클린업

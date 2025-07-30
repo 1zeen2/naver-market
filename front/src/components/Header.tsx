@@ -7,9 +7,10 @@ import SearchBar from "./ui/SearchBar";
 import Navbar from "./ui/Navbar";
 import styles from "../styles/Header.module.css";
 import LoginModal from "./ui/LoginModal";
-import { useAuth } from "@/context/AuthContext";
 import LoggedInUserInfoBox from "./ui/LoggedInUserInfoBox";
 import { useSearchParams, useRouter, usePathname } from "next/navigation";
+import { useSelector } from "react-redux";
+import { RootState } from "@/store";
 
 interface HeaderProps {
   className?: string;
@@ -43,8 +44,7 @@ export default function Header({ className }: HeaderProps) {
   // -------------------------------------------------------------------------
   // 2. 훅 사용 (Hook Usage)
   // -------------------------------------------------------------------------
-  // AuthContext에서 로그인 상태(`isLoggedIn`)와 사용자 정보(`user`)를 가져옵니다.
-  const { isLoggedIn } = useAuth();
+  const isLoggedIn = useSelector((state: RootState) => state.auth.isLoggedIn);
 
   // URL 쿼리 파라미터를 가져오기 위한 `useSearchParams` 훅 사용
   const searchParams = useSearchParams();
@@ -86,7 +86,7 @@ export default function Header({ className }: HeaderProps) {
    * @function openModal
    * @brief 로그인 모달을 여는 함수입니다.
    */
-  const openModal = () => setIsModalOpen(true);
+  const openLoginModal = () => setIsModalOpen(true);
 
   /**
    * @function closeModal
@@ -138,7 +138,7 @@ export default function Header({ className }: HeaderProps) {
       {/* px-44를 grid 컨테이너에 직접 적용하여 전체적인 좌우 여백을 만듭니다. */}
       <div className="grid grid-cols-[1fr_minmax(750px,_max-content)_1fr] items-center mb-4 px-44">
         {/* 첫 번째 열 (왼쪽 유연한 여백) - 비워 둡니다. */}
-        <div></div> 
+        <div></div>
 
         {/* 두 번째 열 (SearchBar) - 이 열 안에서 SearchBar를 중앙 정렬합니다. */}
         <div className="flex justify-center">
@@ -159,8 +159,8 @@ export default function Header({ className }: HeaderProps) {
             // 로그아웃 상태: 로그인 / 회원 가입 버튼
             <div className="flex gap-2 text-xl">
               <button
-                onClick={openModal}
-                className={`${styles.button} ${styles.buttonLarge}`}
+                className={styles.loginButton}
+                onClick={openLoginModal} // openModal -> openLoginModal 일관성 유지
               >
                 로그인
               </button>
