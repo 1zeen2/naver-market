@@ -11,5 +11,5 @@ import lombok.Setter;
 @Getter
 @Setter
 public class FileStorageProperties {
-	private String uploadDir; 
+	private String uploadDir;
 }

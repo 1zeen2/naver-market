@@ -3,7 +3,7 @@ package dev.seo.navermarket.validator;
 import org.springframework.stereotype.Component;
 
 import dev.seo.navermarket.member.domain.MemberEntity;
-import dev.seo.navermarket.repository.MemberRepository;
+import dev.seo.navermarket.member.repository.MemberRepository;
 import lombok.RequiredArgsConstructor;
 
 @Component

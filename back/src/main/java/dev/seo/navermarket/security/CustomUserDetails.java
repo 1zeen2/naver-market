@@ -22,6 +22,7 @@ public class CustomUserDetails implements UserDetails {
 	private Long memberId;
 	private String userId;
 	private String password; // 회원의 비밀번호 (해시된 비밀번호)
+	private String nickname;
 	private Collection<? extends GrantedAuthority> authorities;
 
 	/**
@@ -32,6 +33,7 @@ public class CustomUserDetails implements UserDetails {
 		this.memberId = member.getMemberId();
 		this.userId = member.getUserId();
 		this.password = member.getUserPwd();
+		this.nickname = member.getNickname();
 		this.authorities = Collections.singletonList(new SimpleGrantedAuthority("ROLE_USER"));
 	}
 	
@@ -81,4 +83,9 @@ public class CustomUserDetails implements UserDetails {
     public Long getMemberId() {
         return this.memberId;
     }
+    
+    public String getNickname() {
+		return this.nickname;
+    }
+    
 }

@@ -1,27 +1,36 @@
 package dev.seo.navermarket.config;
 
-import dev.seo.navermarket.jwt.JwtAuthenticationFilter; // JWT 인증 필터 임포트
-import dev.seo.navermarket.jwt.JwtTokenProvider; // JWT 토큰 프로바이더 임포트
 import dev.seo.navermarket.security.CustomUserDetailsService;
+import dev.seo.navermarket.security.jwt.JwtAccessDeniedHandler;
+import dev.seo.navermarket.security.jwt.JwtAuthenticationEntryPoint;
+import dev.seo.navermarket.security.jwt.JwtAuthenticationFilter;
+import dev.seo.navermarket.security.jwt.JwtTokenProvider;
 import lombok.RequiredArgsConstructor;
+
+import org.springframework.beans.factory.annotation.Value;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
+import org.springframework.http.HttpMethod;
 import org.springframework.security.authentication.AuthenticationManager;
 import org.springframework.security.config.annotation.authentication.configuration.AuthenticationConfiguration;
 import org.springframework.security.config.annotation.web.builders.HttpSecurity;
 import org.springframework.security.config.annotation.web.configuration.EnableWebSecurity;
-import org.springframework.security.config.annotation.web.configurers.AbstractHttpConfigurer; // CSRF 비활성화를 위한 임포트
-import org.springframework.security.config.http.SessionCreationPolicy; // 세션 관리 정책 임포트
-import org.springframework.security.crypto.bcrypt.BCryptPasswordEncoder; // BCryptPasswordEncoder 임포트
-import org.springframework.security.crypto.password.PasswordEncoder; // PasswordEncoder 인터페이스 임포트
-import org.springframework.security.web.SecurityFilterChain; // SecurityFilterChain 임포트
-import org.springframework.security.web.authentication.UsernamePasswordAuthenticationFilter; // 필터 추가 위치 지정 임포트
-import org.springframework.web.cors.CorsConfiguration; // CORS 설정 임포트
-import org.springframework.web.cors.CorsConfigurationSource; // CORS 설정 소스 임포트
-import org.springframework.web.cors.UrlBasedCorsConfigurationSource; // URL 기반 CORS 설정 소스 임포트
+import org.springframework.security.config.annotation.web.configurers.AbstractHttpConfigurer;
+import org.springframework.security.config.http.SessionCreationPolicy;
+import org.springframework.security.crypto.bcrypt.BCryptPasswordEncoder;
+import org.springframework.security.crypto.password.PasswordEncoder;
+import org.springframework.security.web.SecurityFilterChain;
+// === 추가된 임포트 ===
+import org.springframework.security.web.context.SecurityContextHolderFilter;
+// ====================
+import org.springframework.web.cors.CorsConfiguration;
+import org.springframework.web.cors.CorsConfigurationSource;
+import org.springframework.web.cors.UrlBasedCorsConfigurationSource;
+import org.springframework.web.servlet.config.annotation.ResourceHandlerRegistry;
+import org.springframework.web.servlet.config.annotation.WebMvcConfigurer;
 
-import java.util.Arrays; // Arrays 유틸리티 임포트
-import java.util.List; // List 유틸리티 임포트
+import java.util.Arrays;
+import java.util.List;
 
 /**
  * @file WebSecurityConfig.java
@@ -31,10 +40,22 @@ import java.util.List; // List 유틸리티 임포트
 @Configuration
 @EnableWebSecurity	// Spring Security를 활성화하고 웹 보안 구성을 가능하게 합니다.
 @RequiredArgsConstructor // final 필드에 대한 생성자를 자동으로 생성하여 의존성 주입을 처리합니다.
-public class WebSecurityConfig {
+public class WebSecurityConfig implements WebMvcConfigurer {
 	
 	private final JwtTokenProvider jwtTokenProvider; // JWT 토큰 생성 및 검증을 위한 프로바이더 주입
 	private final CustomUserDetailsService customUserDetailsService;
+	private final JwtAuthenticationEntryPoint jwtAuthenticationEntryPoint;
+	private final JwtAccessDeniedHandler jwtAccessDeniedHandler;
+	
+	
+	// application.yml에서 파일 업로드 디렉토리 경로를 주입받습니다.
+	@Value("${file.upload-dir}") // 파일 업로드 디렉토리 경로 주입
+	private String uploadDir;
+	
+	@Bean
+	JwtAuthenticationFilter jwtAuthenticationFilter() {
+		return new JwtAuthenticationFilter(jwtTokenProvider, customUserDetailsService);
+	}
 	
 	/**
      * @brief 비밀번호 암호화를 위한 PasswordEncoder 빈을 등록합니다.
@@ -93,38 +114,55 @@ public class WebSecurityConfig {
 	@Bean
     SecurityFilterChain securityFilterChain(HttpSecurity http) throws Exception {
 		http
-			// CORS 설정 적용: 위에서 정의한 corsConfigurationSource 빈을 사용합니다.
 			.cors(cors -> cors.configurationSource(corsConfigurationSource()))
             // CSRF(Cross-Site Request Forgery) 보호 비활성화:
-            // JWT는 세션 기반이 아니므로 CSRF 공격에 대한 추가적인 보호가 필요하지 않습니다.
             .csrf(AbstractHttpConfigurer::disable)
-            // 예외 처리 설정: 인증/인가 실패 시 처리할 핸들러를 정의할 수 있습니다.
-            // .exceptionHandling(exceptionHandling -> exceptionHandling
-            //     .authenticationEntryPoint(jwtAuthenticationEntryPoint) // 인증 실패 시
-            //     .accessDeniedHandler(jwtAccessDeniedHandler) // 인가 실패 시
-            // )
+            // 예외 처리 핸들러 설정
+            .exceptionHandling(exceptionHandling -> exceptionHandling
+                .authenticationEntryPoint(jwtAuthenticationEntryPoint) // 인증 실패 시 (401)
+                .accessDeniedHandler(jwtAccessDeniedHandler) // 인가 실패 시 (403)
+            )
             // 세션 관리 설정: JWT는 무상태(Stateless)이므로 세션을 사용하지 않도록 설정합니다.
             .sessionManagement(sessionManagement -> sessionManagement
                 .sessionCreationPolicy(SessionCreationPolicy.STATELESS)
             )
+            
+            .anonymous(AbstractHttpConfigurer::disable)
             // 요청별 인가 규칙 설정:
             .authorizeHttpRequests(authorizeRequests -> authorizeRequests
-                // 인증 및 회원가입 관련 API는 모두 허용 (인증 없이 접근 가능)
-                .requestMatchers("/api/auth/**").permitAll()
-                // 회원 관련 API(아이디, 이메일 중복 확인 등)도 허용
-                .requestMatchers("/api/member/**").permitAll()
-                // 상품 목록 조회 API는 모두 허용 (인증 없이 접근 가능)
-                .requestMatchers("/api/products", "/api/products/**").permitAll()
-                // H2 Console (개발용 DB 콘솔) 접근 허용 (개발 시에만 사용)
-                // .requestMatchers("/h2-console/**").permitAll()
-                // 그 외 모든 요청은 인증된 사용자만 허용
-                .anyRequest().authenticated()
+            		.requestMatchers(HttpMethod.OPTIONS, "/**").permitAll()
+	                .requestMatchers("/api/auth/**").permitAll() // 인증 및 회원가입 관련 API는 모두 허용 (인증 없이 접근 가능)
+	                .requestMatchers("/api/member/**").permitAll() // 회원 관련 API(아이디, 이메일 중복 확인 등)도 허용.
+	                .requestMatchers(HttpMethod.GET, "/api/products", "/api/products/**").permitAll() // 상품 목록 조회 API는 모두 허용 (인증 없이 접근 가능)
+	                .requestMatchers(HttpMethod.POST, "/api/products").authenticated() // 상품 등록 (POST)은 인증 필요
+	                .requestMatchers(HttpMethod.PUT, "/api/products/**").authenticated()
+	                .requestMatchers(HttpMethod.DELETE, "/api/products/**").authenticated()
+	                .requestMatchers("/uploads/**").permitAll() // 상품 등록(대표 이미지와 상세 이미지) 경로에 대한 접근 허용
+	                // H2 Console (개발용 DB 콘솔) 접근 허용 (개발 시에만 사용)
+	                // .requestMatchers("/h2-console/**").permitAll()
+	                // 그 외 모든 요청은 인증된 사용자만 허용
+	                .anyRequest().authenticated()
             )
             // JWT 인증 필터 추가:
-            // Spring Security의 UsernamePasswordAuthenticationFilter 이전에 JWT 인증 필터를 추가합니다.
+            // Spring Security의 SecurityContextHolderFilter 이전에 JWT 인증 필터를 추가합니다.
             // 이렇게 함으로써 JWT 토큰을 먼저 검증하고, 유효하면 SecurityContext에 인증 정보를 설정합니다.
-            .addFilterBefore(new JwtAuthenticationFilter(jwtTokenProvider, customUserDetailsService), UsernamePasswordAuthenticationFilter.class);
+            // === 변경된 부분 ===
+            .addFilterBefore(jwtAuthenticationFilter(), SecurityContextHolderFilter.class);
+            // ==================
 
         return http.build();
     }
+	
+	/**
+	 * @brief 정적 리소스 핸들러를 추가합니다.
+	 * "/uploads/**" URL 패턴으로 들어오는 요청을 실제 파일 시스템의 업로드 디렉토리로 매핑합니다.
+	 * 이렇게 함으로써 프론트엔드에서 `/uploads/파일명.jpg`와 같은 URL로 이미지에 접근할 수 있게 됩니다.
+	 *
+	 * @param registry ResourceHandlerRegistry 객체
+	 */
+	@Override // WebMvcConfigurer 인터페이스의 메서드 오버라이드
+	public void addResourceHandlers(ResourceHandlerRegistry registry) {
+		registry.addResourceHandler("/uploads/**")
+				.addResourceLocations("file:///" + uploadDir + "/");
+	}
 }

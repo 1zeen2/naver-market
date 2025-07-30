@@ -1,28 +1,33 @@
-// 이 파일은 Axios 인스턴스를 설정하고, JWT 토큰을 요청 헤더에 자동으로 추가하는 인터셉터를 정의합니다.
-
 import axios from "axios";
+import { store } from "@/store";
+import { logout } from "@/store/authSlice";
 
 // Axios 인스턴스 생성
 // Next.js의 rewrites 설정을 통해 /api 요청은 백엔드 서버로 프록시됩니다.
 const api = axios.create({
-  baseURL: '',
-  timeout: 10000, // 요청 타임 아웃 10초
-  headers: {
-    'Content-Type': 'application/json',
-  },
+  baseURL: 'http://localhost:80',
+  timeout: 10000,
+  headers: {},
+  withCredentials: true, // 쿠키와 같은 자격 증명을 요청에 포함
 });
 
 // 요청 인터셉터: 모든 요청에 JWT 토큰을 추가합니다.
 api.interceptors.request.use(
   (config) => {
-    // 클라이언트 사이드에서만 localStorage에 접근합니다.
-    if (typeof window !== 'undefined') {
-      const token = localStorage.getItem('authToken');
-      if (token) {
-        // 토큰이 존재하면 Authorization 헤더에 추가합니다.
-        config.headers.Authorization = `Bearer ${token}`;
-      }
+    // Redux 스토어에서 직접 accessToken을 가져옵니다.
+    // store.getState()를 통해 현재 Redux 스토어의 상태에 접근합니다.
+    const accessToken = store.getState().auth.accessToken;
+    
+    console.log('리덕스로부터 엑세스 토크이 오는지 확인', accessToken);
+
+    if (accessToken) {
+      config.headers.Authorization = `Bearer ${accessToken}`;
     }
+
+    if (config.data instanceof FormData) {
+      delete config.headers['Content-Type'];
+    }
+
     return config;
   },
   (error) => {
@@ -39,17 +44,28 @@ api.interceptors.response.use(
   },
   (error) => {
     // 응답 에러 처리
-    if (error.response && error.response.status === 401) {
+    if (axios.isAxiosError(error) && error.response && error.response.status === 401) {
       // 401 에러 (인증 실패) 발생 시
       console.error('Unauthorized: JWT token is invalid or expired. Logging out...');
-      // localStorage에서 토큰 제거
-      if (typeof window !== 'undefined') {
-        localStorage.removeItem('authToken');
-      }
-      // TODO: 사용자에게 알림 (예: 토스트 메시지) 후 로그인 페이지로 리다이렉트
-      // 현재는 AuthContext에서 로그아웃 처리를 담당하므로 여기서는 토큰 제거만 합니다.
-      // AuthContext의 useQuery 'currentUser'가 401을 받으면 자동으로 토큰을 제거하고 user를 null로 설정할 것입니다.
+      
+      // Redux 스토어에 로그아웃 액션 디스패치
+      // 직접 액션을 임포트하여 디스패치하는 것이 더 명확합니다.
+      // import { logout } from '@/store/authSlice'; // api.ts에서 logout 액션 임포트 필요
+      // store.dispatch(logout()); 
+      
+      // 또는, Redux 스토어에 직접 접근하여 타입 정의가 필요 없는 방식으로 디스패치할 수도 있습니다.
+      // 하지만 명확성을 위해 logout 액션을 임포트하는 것을 권장합니다.
+      store.dispatch(logout()); // Redux 스토어에 직접 액션 타입으로 디스패치
+
+      // TODO: 사용자에게 알림 (예: 토스트 메시지)
+      // ToastNotification을 사용하고 있다면, 여기서 알림을 띄우는 액션을 디스패치할 수 있습니다.
+      // import { showNotification } from '@/features/notification/notificationSlice';
+      // store.dispatch(showNotification({ message: '세션이 만료되었습니다. 다시 로그인해주세요.', type: 'error' }));
+
+      // 리다이렉션은 보통 Header 컴포넌트나 로그인 모달에서 처리하는 것이 좋습니다.
+      // 여기서는 토큰 제거 및 Redux 상태 초기화만 담당합니다.
     }
+    console.error('API 오류:', error.response || error.message);
     return Promise.reject(error);
   }
 );

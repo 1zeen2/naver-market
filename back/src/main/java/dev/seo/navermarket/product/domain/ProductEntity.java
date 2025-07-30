@@ -1,6 +1,5 @@
 package dev.seo.navermarket.product.domain;
 
-import java.math.BigDecimal;
 import java.time.LocalDateTime;
 import java.util.ArrayList;
 import java.util.List;
@@ -34,7 +33,7 @@ import lombok.ToString;
 @ToString(exclude = "detailImages") // detailImages는 순환 참조 방지를 위해 toString에서 제외.
 @NoArgsConstructor(access = AccessLevel.PROTECTED) // Lombok: 인자 없는 기본 생성자를 자동으로 생성하며, protected 접근 제어자를 가집니다.
 @AllArgsConstructor(access = AccessLevel.PRIVATE) // 모든 필드를 인자로 받는 private 생성자 추가 (Builder 사용 시 내부적으로 사용)
-@Builder // Builder 패턴 자동 생성
+@Builder
 @EntityListeners(AuditingEntityListener.class) // JPA Auditing 기능을 활성화하여 생성/수정 시간을 자동으로 관리합니다.
 public class ProductEntity {
 
@@ -44,7 +43,7 @@ public class ProductEntity {
     private Long productId;
 
 	@ManyToOne(fetch = FetchType.LAZY)
-    @Column(name = "member_id", nullable = false)
+    @JoinColumn(name = "seller_id", nullable = false)
     private MemberEntity seller; // MySQL의 member_id 인덱스와 매핑
 
     @Column(name = "title", nullable = false, length = 255)
@@ -53,8 +52,8 @@ public class ProductEntity {
     @Column(name = "category", nullable = false, length = 100)
     private String category;
 	
-    @Column(name = "price", nullable = false, precision = 10, scale = 0) // 상품 가격 (DECIMAL(10,0))
-    private BigDecimal price;
+    @Column(name = "price", nullable = false) // 상품 가격 (DECIMAL(10,0))
+    private Long price;
 	
     @Column(name = "description", nullable = false, columnDefinition = "TEXT") // 상세 설명 (TEXT Type)
     private String description;
@@ -101,16 +100,34 @@ public class ProductEntity {
         this.views++;
     }
     
-    // 상세 이미지 추가 (양방향 관계 설정)
+    // 대표 이미지 추가 (양방향 관계 설정)
     public void addDetailImage(ProductDetailImage detailImage) {
-        this.detailImages.add(detailImage);
-        detailImage.setProduct(this);
+        if (detailImage != null) {
+            this.detailImages.add(detailImage);
+            detailImage.setProduct(this);
+        }
+    }
+    
+    // 대표 이미지 제거
+    public void removeDetailImage(ProductDetailImage detailImage) {
+        if (detailImage != null) {
+            this.detailImages.remove(detailImage);
+            detailImage.setProduct(null); // 관계 해제
+        }
+    }
+    
+    // 상세 이미지 추가 (여러 이미지, 양방향 관계 설정)
+    public void addDetailImages(List<ProductDetailImage> newDetailImages) {
+        if (newDetailImages != null && !newDetailImages.isEmpty()) {
+            newDetailImages.forEach(this::addDetailImage); // 각 이미지를 단일 추가 메서드를 통해 처리
+        }
     }
     
     // 상세 이미지 제거
-    public void removeDetailImage(ProductDetailImage detailImage) {
-        this.detailImages.remove(detailImage);
-        detailImage.setProduct(null);
+    public void removeDetailImages(List<ProductDetailImage> detailImagesToRemove) {
+        if (detailImagesToRemove != null && !detailImagesToRemove.isEmpty()) {
+            detailImagesToRemove.forEach(this::removeDetailImage); // 각 이미지를 단일 제거 메서드를 통해 처리
+        }
     }
     
     /**
@@ -122,7 +139,7 @@ public class ProductEntity {
      * @param mainImageUrl 새로운 메인 이미지 URL
      * @param preferredTradeLocation 새로운 거래 희망 지역
      */
-    public void updateProduct(String title, String description, BigDecimal price, String category,
+    public void updateProduct(String title, String description, Long price, String category,
             String mainImageUrl, String preferredTradeLocation) {
 		this.title = title;
 		this.description = description;

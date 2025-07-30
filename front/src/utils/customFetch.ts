@@ -15,11 +15,13 @@ export async function customFetch<T = unknown, D = unknown>(
   try {
     const { method = 'GET', headers, body } = options || {};
 
+    const contentType = body instanceof FormData ? undefined : 'application/json';
+
     const config: Record<string, unknown> = {
       method,
       headers: {
-        'Content-Type': 'application/json',
-        ...headers,
+        'Content-Type': contentType,
+        ...headers, // 사용자가 명시적으로 전달한 헤더를 병합 (이것이 우선순위가 높음)
       },
     };
 

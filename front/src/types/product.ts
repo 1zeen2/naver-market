@@ -4,9 +4,19 @@
  * ProductListResponseDto, ProductDetailResponseDto, 그리고 페이지네이션을 위한 Page 타입을 정의합니다.
  */
 
-import Decimal from "decimal.js";
-
-export type BigDecimal = Decimal
+/**
+ * @interface ProductCreateRequest
+ * @brief 새로운 상품 등록 요청 시 사용되는 DTO 타입입니다.
+ * 백엔드의 ProductCreateRequestDto와 일치합니다.
+ */
+export type ProductCreateRequest = {
+  title: string;
+  category: string;
+  price: number;
+  description: string;
+  preferredTradeLocation: string;
+  // 백엔드 ProductCreateRequestDto에 추가 필드가 있다면 여기에 추가
+};
 
 /**
  * @interface ProductListResponseDto
@@ -18,7 +28,7 @@ export interface ProductListResponseDto {
   memberId: number;
   title: string;
   category: string;
-  price: BigDecimal;
+  price: number;
   mainImageUrl: string;
   status: 'ACTIVE' | 'RESERVED' | 'SOLD_OUT' | 'DELETED';
   views: number;
@@ -36,7 +46,7 @@ export interface ProductDetailResponseDto {
   memberId: number;
   title: string;
   category: string;
-  price: BigDecimal;
+  price: number;
   description: string;
   imageUrls: string[]; // 모든 상세 이미지 URL 목록
   status: 'ACTIVE' | 'RESERVED' | 'SOLD_OUT' | 'DELETED';
@@ -79,3 +89,11 @@ export interface Page<T> {
   numberOfElements: number;
   empty: boolean;
 }
+
+// 백엔드 에러 응답 DTO에 해당하는 타입
+export type ProductErrorResponse = {
+  status: number;
+  message: string;
+  code: string;
+  // 에러 응답 DTO에 따라 추가 필드 가능 (예: errors: { field: string, defaultMessage: string }[])
+};

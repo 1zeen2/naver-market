@@ -1,19 +1,30 @@
 "use client";
 
 import React, { useEffect } from 'react';
-import { useAuth } from '@/context/AuthContext';
+import { useSelector } from 'react-redux';
+import { RootState } from '@/store';
 import { useRouter } from 'next/navigation';
+import ProductRegistrationForm from '../../../components/ProductRegistrationForm';
 
+/**
+ * @file page.tsx
+ * @brief Next.js App Router를 위한 상품 등록 페이지입니다.
+ * 사용자 인증 상태를 확인하고, 로그인된 경우 ProductRegistrationForm 컴포넌트를 렌더링합니다.
+ */
 export default function ProductRegisterPage() {
-  const { isLoggedIn, isLoading } = useAuth();
   const router = useRouter();
+
+  // Redux 스토어에서 인증 상태와 로딩 상태를 가져옵니다.
+  // authSlice의 isLoggedIn과 isLoading 상태를 가정합니다.
+  const isLoggedIn = useSelector((state: RootState) => state.auth.isLoggedIn);
+  const isLoading = useSelector((state: RootState) => state.auth.isLoading); // authSlice에 isLoading 상태가 있다고 가정
 
   useEffect(() => {
     // isLoading이 false가 되고, isLoggedIn 상태가 최종 확인된 후에만 처리
     if (!isLoading) {
       if (!isLoggedIn) {
-        console.warn('로그인이 필요한 페이지입니다. 로그인 페이지로 이동합니다.');
-        router.push('/login'); // 로그인 페이지로 리다이렉트
+        console.warn('로그인이 필요한 페이지입니다. 메인 페이지로 이동합니다.');
+        router.push('/'); // 로그인 페이지로 리다이렉트
       }
     }
   }, [isLoggedIn, isLoading, router]);
@@ -32,13 +43,6 @@ export default function ProductRegisterPage() {
 
   // 로그인된 사용자에게만 보이는 콘텐츠
   return (
-    <main className="container mx-auto py-8 px-4">
-      <h2 className="text-3xl font-bold mb-6 text-center">상품 등록</h2>
-      <div className="bg-white p-8 rounded-lg shadow-md max-w-2xl mx-auto">
-        <p className="text-gray-700">여기에 상품 등록 폼이 들어갑니다.</p>
-        <p className="text-sm text-gray-500 mt-4">이 페이지는 로그인된 사용자만 접근할 수 있습니다.</p>
-        {/* 실제 상품 등록 폼 구현 */}
-      </div>
-    </main>
+    <ProductRegistrationForm />
   );
 }

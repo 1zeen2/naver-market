@@ -7,7 +7,7 @@ import org.springframework.web.bind.MethodArgumentNotValidException;
 import org.springframework.web.bind.annotation.ExceptionHandler;
 import org.springframework.web.bind.annotation.RestControllerAdvice;
 
-import dev.seo.navermarket.dto.ErrorResponseDto;
+import dev.seo.navermarket.common.dto.ErrorResponseDto;
 
 import java.util.HashMap;
 import java.util.Map;
