@@ -8,6 +8,11 @@ import org.springframework.web.bind.annotation.ExceptionHandler;
 import org.springframework.web.bind.annotation.RestControllerAdvice;
 
 import dev.seo.navermarket.common.dto.ErrorResponseDto;
+import dev.seo.navermarket.common.exception.DuplicateEmailException;
+import dev.seo.navermarket.common.exception.DuplicateUserIdException;
+import dev.seo.navermarket.common.exception.InvalidPasswordException;
+import dev.seo.navermarket.common.exception.InvalidTokenException;
+import dev.seo.navermarket.common.exception.UserNotFoundException;
 
 import java.util.HashMap;
 import java.util.Map;
@@ -31,6 +36,7 @@ public class GlobalExceptionHandler {
         ErrorResponseDto errorResponse = ErrorResponseDto.builder()
         		.status(HttpStatus.BAD_REQUEST.value())
         		.message("유효성 검사 실패: " + errors.toString()) // Map을 문자열로 변환하여 메시지에 포함
+        		.code("VALIDATION_FAILED")
         		.build();
         return new ResponseEntity<>(errorResponse, HttpStatus.BAD_REQUEST);
     }
@@ -58,65 +64,109 @@ public class GlobalExceptionHandler {
 	            .build();
     	return new ResponseEntity<>(errorResponse, HttpStatus.CONFLICT);
 	}
+    
+    // 4.1. 사용자 찾을 수 없음 - 404 Not Found (또는 401 Unauthorized for login)
+    @ExceptionHandler(UserNotFoundException.class)
+    public ResponseEntity<ErrorResponseDto> handleUserNotFoundException(UserNotFoundException ex) {
+        ErrorResponseDto errorResponse = ErrorResponseDto.builder()
+                .status(HttpStatus.NOT_FOUND.value()) // 사용자를 찾을 수 없으므로 404
+                .message(ex.getMessage())
+                .code(ex.getErrorCode())
+                .build();
+        return new ResponseEntity<>(errorResponse, HttpStatus.NOT_FOUND);
+    }
 
-    // 4. 데이터베이스 제약 조건 위반 (예: NOT NULL 위반, UNIQUE 제약 조건 위반) - 409 Conflict 또는 400 Bad Request
-    // 이 예외는 Service 단에서 MemberRepository.save() 호출 시 발생할 수 있습니다.
-	@ExceptionHandler(DataIntegrityViolationException.class)
-	public ResponseEntity<ErrorResponseDto> handleDataIntegrityViolationException(DataIntegrityViolationException ex) {
-		String errorMessage = "데이터베이스 제약 조건을 위반했습니다. 이미 존재하는 아이디/이메일이거나 필수 값이 누락되었습니다.";
-		String errorCode = "DB_CONSTRAINT_VIOLATION";
-		HttpStatus status = HttpStatus.CONFLICT;
-		
-		// 좀 더 친화적인 메시지로 변환합니다.
-		if (ex.getCause() != null && ex.getCause().getMessage().contains("Duplicate entry")) {
-			errorMessage = "이미 사용 중인 아이디 또는 이메일입니다.";
-			errorCode = "DUPLICATE_ENTRY";
-		} else if (ex.getCause() != null && ex.getCause().getMessage().contains("cannot be null")) {
-			errorMessage = "필수 정보가 누락되었습니다.";
-			errorCode = "MISSING_REQUIRED_FIELD";
-		}
-		
-		ErrorResponseDto errorResponse = ErrorResponseDto.builder()
-				.status(status.value())
-				.message(errorMessage)
-				.code(errorCode)
-				.build();
-		return new ResponseEntity<>(errorResponse, status);
-	}
-	
-	// 5. 일반 RuntimeException 처리 (로그인 실패 등)
-    //    이 핸들러는 IllegalArgumentException, IllegalStateException, DataIntegrityViolationException
-    //    등의 더 구체적인 RuntimeException 자식 클래스들이 처리되지 않은 경우에만 잡습니다.
-    //    특히 AuthServiceImpl에서 던지는 "사용자를 찾을 수 없습니다." 또는 "비밀번호가 일치하지 않습니다."
-    //    와 같은 메시지를 가진 RuntimeException을 여기서 처리하여 401 Unauthorized를 반환합니다.
-    @ExceptionHandler(RuntimeException.class)
-    public ResponseEntity<ErrorResponseDto> handleRuntimeException(RuntimeException ex) {
-        HttpStatus status = HttpStatus.INTERNAL_SERVER_ERROR; // 기본값: 예상치 못한 런타임 예외는 500
-        String errorCode = "INTERNAL_SERVER_ERROR";
-        String message = "서버에서 알 수 없는 오류가 발생했습니다. 잠시 후 다시 시도해주세요."; // 사용자에게 노출할 기본 메시지
+    // 4.2. 비밀번호 불일치/유효하지 않음 - 401 Unauthorized
+    @ExceptionHandler(InvalidPasswordException.class)
+    public ResponseEntity<ErrorResponseDto> handleInvalidPasswordException(InvalidPasswordException ex) {
+        ErrorResponseDto errorResponse = ErrorResponseDto.builder()
+                .status(HttpStatus.UNAUTHORIZED.value()) // 인증 실패이므로 401
+                .message(ex.getMessage())
+                .code(ex.getErrorCode())
+                .build();
+        return new ResponseEntity<>(errorResponse, HttpStatus.UNAUTHORIZED);
+    }
 
-        // 로그인 실패 관련 메시지 처리 (AuthService에서 던지는 특정 메시지)
-        if (ex.getMessage() != null &&
-            (ex.getMessage().contains("사용자를 찾을 수 없습니다.") || ex.getMessage().contains("비밀번호가 일치하지 않습니다."))) {
-            status = HttpStatus.UNAUTHORIZED; // 401 Unauthorized
-            errorCode = "AUTH_FAILED";
-            message = ex.getMessage(); // AuthService에서 던진 구체적인 메시지 사용
+    // 4.3. 아이디 중복 - 409 Conflict
+    @ExceptionHandler(DuplicateUserIdException.class)
+    public ResponseEntity<ErrorResponseDto> handleDuplicateUserIdException(DuplicateUserIdException ex) {
+        ErrorResponseDto errorResponse = ErrorResponseDto.builder()
+                .status(HttpStatus.CONFLICT.value())
+                .message(ex.getMessage())
+                .code(ex.getErrorCode())
+                .build();
+        return new ResponseEntity<>(errorResponse, HttpStatus.CONFLICT);
+    }
+
+    // 4.4. 이메일 중복 - 409 Conflict
+    @ExceptionHandler(DuplicateEmailException.class)
+    public ResponseEntity<ErrorResponseDto> handleDuplicateEmailException(DuplicateEmailException ex) {
+        ErrorResponseDto errorResponse = ErrorResponseDto.builder()
+                .status(HttpStatus.CONFLICT.value())
+                .message(ex.getMessage())
+                .code(ex.getErrorCode())
+                .build();
+        return new ResponseEntity<>(errorResponse, HttpStatus.CONFLICT);
+    }
+
+    // 4.5. JWT 토큰 유효성 실패 - 401 Unauthorized
+    @ExceptionHandler(InvalidTokenException.class)
+    public ResponseEntity<ErrorResponseDto> handleInvalidTokenException(InvalidTokenException ex) {
+        ErrorResponseDto errorResponse = ErrorResponseDto.builder()
+                .status(HttpStatus.UNAUTHORIZED.value()) // 토큰 인증 실패이므로 401
+                .message(ex.getMessage())
+                .code(ex.getErrorCode())
+                .build();
+        return new ResponseEntity<>(errorResponse, HttpStatus.UNAUTHORIZED);
+    }
+
+    // 5. 데이터베이스 제약 조건 위반 (예: NOT NULL 위반, UNIQUE 제약 조건 위반) - 409 Conflict 또는 400 Bad Request
+    //    DuplicateUserIdException, DuplicateEmailException이 먼저 처리되므로,
+    //    다른 종류의 DataIntegrityViolationException (예: NOT NULL 위반)을 처리합니다.
+    @ExceptionHandler(DataIntegrityViolationException.class)
+    public ResponseEntity<ErrorResponseDto> handleDataIntegrityViolationException(DataIntegrityViolationException ex) {
+        String errorMessage = "데이터베이스 제약 조건을 위반했습니다. 필수 값이 누락되었거나 형식이 올바르지 않습니다.";
+        String errorCode = "DB_CONSTRAINT_VIOLATION";
+        HttpStatus status = HttpStatus.BAD_REQUEST; // 제약 조건 위반은 주로 400 또는 409
+
+        // 좀 더 친화적인 메시지로 변환합니다.
+        // Duplicate entry는 이제 DuplicateUserIdException/DuplicateEmailException에서 처리될 가능성이 높습니다.
+        if (ex.getCause() != null && ex.getCause().getMessage().contains("cannot be null")) {
+            errorMessage = "필수 정보가 누락되었습니다.";
+            errorCode = "MISSING_REQUIRED_FIELD";
         } else {
-            // 그 외의 일반적인 RuntimeException은 500으로 처리하고, 상세 메시지는 로그에만 남깁니다.
-            System.err.println("Unexpected RuntimeException: " + ex.getMessage()); // 개발자용 로그
-            ex.printStackTrace(); // 스택 트레이스도 로그에 남김
+            // 그 외의 DataIntegrityViolationException (예: 너무 긴 문자열, 잘못된 타입 등)
+            // 상세 메시지는 로그에만 남기고 사용자에게는 일반적인 메시지 제공
+            System.err.println("DataIntegrityViolationException: " + ex.getMessage());
         }
 
         ErrorResponseDto errorResponse = ErrorResponseDto.builder()
                 .status(status.value())
-                .message(message)
+                .message(errorMessage)
                 .code(errorCode)
                 .build();
-
         return new ResponseEntity<>(errorResponse, status);
     }
+	
+    // 6. 일반 RuntimeException 처리 (예상치 못한 런타임 예외)
+    //    이제 로그인 실패 관련 메시지는 UserNotFoundException, InvalidPasswordException에서 처리되므로,
+    //    이 핸들러는 위의 모든 특정 RuntimeException 자식 클래스들이 처리되지 않은 경우에만 잡습니다.
+    @ExceptionHandler(RuntimeException.class)
+    public ResponseEntity<ErrorResponseDto> handleRuntimeException(RuntimeException ex) {
+        // 예상치 못한 런타임 예외는 500 Internal Server Error로 처리
+        System.err.println("Unexpected RuntimeException: " + ex.getMessage()); // 개발자용 로그
+        ex.printStackTrace(); // 스택 트레이스도 로그에 남김 (프로덕션에서는 로깅 시스템 사용)
 
-    // 6. 그 외 모든 예상치 못한 예외 - 500 Internal Server Error (가장 일반적인 예외)
+        ErrorResponseDto errorResponse = ErrorResponseDto.builder()
+                .status(HttpStatus.INTERNAL_SERVER_ERROR.value())
+                .message("서버에서 알 수 없는 오류가 발생했습니다. 잠시 후 다시 시도해주세요.")
+                .code("INTERNAL_SERVER_ERROR")
+                .build();
+
+        return new ResponseEntity<>(errorResponse, HttpStatus.INTERNAL_SERVER_ERROR);
+    }
+
+    // 7. 그 외 모든 예상치 못한 예외 - 500 Internal Server Error (가장 일반적인 예외)
     //    이 핸들러는 위의 모든 특정 예외 핸들러들이 잡지 못한 모든 Exception을 처리합니다.
     @ExceptionHandler(Exception.class)
     public ResponseEntity<ErrorResponseDto> handleGenericException(Exception ex) {

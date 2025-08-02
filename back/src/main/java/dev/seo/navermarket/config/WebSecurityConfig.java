@@ -112,43 +112,47 @@ public class WebSecurityConfig implements WebMvcConfigurer {
      * @throws Exception 보안 구성 실패 시 예외 발생
      */
 	@Bean
-    SecurityFilterChain securityFilterChain(HttpSecurity http) throws Exception {
+	SecurityFilterChain securityFilterChain(HttpSecurity http) throws Exception {
 		http
 			.cors(cors -> cors.configurationSource(corsConfigurationSource()))
             // CSRF(Cross-Site Request Forgery) 보호 비활성화:
-            .csrf(AbstractHttpConfigurer::disable)
+			.csrf(AbstractHttpConfigurer::disable)
             // 예외 처리 핸들러 설정
-            .exceptionHandling(exceptionHandling -> exceptionHandling
+			.exceptionHandling(exceptionHandling -> exceptionHandling
                 .authenticationEntryPoint(jwtAuthenticationEntryPoint) // 인증 실패 시 (401)
                 .accessDeniedHandler(jwtAccessDeniedHandler) // 인가 실패 시 (403)
             )
             // 세션 관리 설정: JWT는 무상태(Stateless)이므로 세션을 사용하지 않도록 설정합니다.
-            .sessionManagement(sessionManagement -> sessionManagement
-                .sessionCreationPolicy(SessionCreationPolicy.STATELESS)
+			.sessionManagement(sessionManagement -> sessionManagement
+				.sessionCreationPolicy(SessionCreationPolicy.STATELESS)
             )
-            
-            .anonymous(AbstractHttpConfigurer::disable)
+			.anonymous(AbstractHttpConfigurer::disable)
             // 요청별 인가 규칙 설정:
-            .authorizeHttpRequests(authorizeRequests -> authorizeRequests
+			.authorizeHttpRequests(authorizeRequests -> authorizeRequests
             		.requestMatchers(HttpMethod.OPTIONS, "/**").permitAll()
-	                .requestMatchers("/api/auth/**").permitAll() // 인증 및 회원가입 관련 API는 모두 허용 (인증 없이 접근 가능)
-	                .requestMatchers("/api/member/**").permitAll() // 회원 관련 API(아이디, 이메일 중복 확인 등)도 허용.
+            		// 인증 및 회원가입 관련 API는 모두 허용 (인증 없이 접근 가능)
+	                .requestMatchers("/api/auth/signup", "/api/auth/login").permitAll() 
+	                // 로그인된 사용자 정보 조회는 인증 필요
+	                .requestMatchers("/api/auth/me").authenticated() 
+	                
+	                // 회원 관련 중복 확인 API는 허용 (인증 없이 접근 가능)
+	                .requestMatchers("/api/member/check-id", "/api/member/check-email").permitAll() 
+	                // 비밀번호 변경 및 만료 확인은 인증 필요
+	                .requestMatchers("/api/member/{memberId}/userPwd", "/api/member/{memberId}/userPwdExpired").authenticated()
+	                
 	                .requestMatchers(HttpMethod.GET, "/api/products", "/api/products/**").permitAll() // 상품 목록 조회 API는 모두 허용 (인증 없이 접근 가능)
 	                .requestMatchers(HttpMethod.POST, "/api/products").authenticated() // 상품 등록 (POST)은 인증 필요
 	                .requestMatchers(HttpMethod.PUT, "/api/products/**").authenticated()
 	                .requestMatchers(HttpMethod.DELETE, "/api/products/**").authenticated()
-	                .requestMatchers("/uploads/**").permitAll() // 상품 등록(대표 이미지와 상세 이미지) 경로에 대한 접근 허용
-	                // H2 Console (개발용 DB 콘솔) 접근 허용 (개발 시에만 사용)
+	                .requestMatchers("/uploads/**").permitAll() 
 	                // .requestMatchers("/h2-console/**").permitAll()
-	                // 그 외 모든 요청은 인증된 사용자만 허용
-	                .anyRequest().authenticated()
+	                .anyRequest().authenticated() // 그 외 모든 요청은 인증된 사용자만 허용
             )
             // JWT 인증 필터 추가:
             // Spring Security의 SecurityContextHolderFilter 이전에 JWT 인증 필터를 추가합니다.
             // 이렇게 함으로써 JWT 토큰을 먼저 검증하고, 유효하면 SecurityContext에 인증 정보를 설정합니다.
             // === 변경된 부분 ===
-            .addFilterBefore(jwtAuthenticationFilter(), SecurityContextHolderFilter.class);
-            // ==================
+			.addFilterBefore(jwtAuthenticationFilter(), SecurityContextHolderFilter.class);
 
         return http.build();
     }
@@ -165,4 +169,5 @@ public class WebSecurityConfig implements WebMvcConfigurer {
 		registry.addResourceHandler("/uploads/**")
 				.addResourceLocations("file:///" + uploadDir + "/");
 	}
+	
 }

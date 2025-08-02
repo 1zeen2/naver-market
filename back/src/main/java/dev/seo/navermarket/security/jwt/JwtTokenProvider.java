@@ -7,8 +7,6 @@ import java.util.function.Function;
 
 import javax.crypto.SecretKey;
 
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Component;
 
@@ -19,6 +17,7 @@ import io.jsonwebtoken.MalformedJwtException;
 import io.jsonwebtoken.UnsupportedJwtException;
 import io.jsonwebtoken.io.Decoders;
 import io.jsonwebtoken.security.Keys;
+import lombok.extern.slf4j.Slf4j;
 
 
 
@@ -28,9 +27,8 @@ import io.jsonwebtoken.security.Keys;
  * application.properties에서 JWT 비밀 키와 만료 시간을 설정합니다.
  */
 @Component
+@Slf4j
 public class JwtTokenProvider {
-	
-	private static final Logger log = LoggerFactory.getLogger(JwtTokenProvider.class);
 	
 	// application.yml에서 주입받을 JWT 비밀 키 (Base64 인코딩된 문자열)
 	@Value("${jwt.secret}")
@@ -48,6 +46,10 @@ public class JwtTokenProvider {
 		try {
             byte[] keyBytes = Decoders.BASE64.decode(secret);
             log.info("디코딩된 JWT 비밀 키 길이: {} bytes ({} bits)", keyBytes.length, keyBytes.length * 8);
+            
+            if (keyBytes.length * 8 < 256) {
+                log.warn("경고: JWT 시크릿 키 길이가 256비트 미만입니다. 더 강력한 키를 사용하세요.");
+            }
         } catch (IllegalArgumentException e) {
             log.error("JWT 토큰이 유효하지 않거나 Base64의 길이가 짧은 경우: {}", secret, e);
         }
@@ -68,10 +70,11 @@ public class JwtTokenProvider {
      * @param userName 토큰에 포함될 사용자 이름 (claim)
      * @return 생성된 JWT 문자열
      */
-	public String generateToken(Long memberId, String userId, String userName) {
+	public String generateToken(Long memberId, String userId, String userName, String role) {
 		Map<String, Object> claims = new HashMap<>();
 		claims.put("memberId", memberId);
 		claims.put("userName", userName);
+		claims.put("role", role);
 		
 		return Jwts.builder()
                 .claims(claims) // 사용자 정의 클레임 설정
@@ -95,14 +98,14 @@ public class JwtTokenProvider {
                 .build()
                 .parseSignedClaims(token); // 토큰 파싱 및 유효성 검사
             return true;
-        } catch (io.jsonwebtoken.security.SecurityException | MalformedJwtException e) {
-            log.info("잘못된 JWT 서명입니다.", e);
+        } catch (SecurityException | MalformedJwtException e) {
+            log.info("잘못된 JWT 서명 또는 형식입니다.", e.getMessage());
         } catch (ExpiredJwtException e) {
-            log.info("만료된 JWT 토큰입니다.", e);
+            log.info("만료된 JWT 토큰입니다.", e.getMessage());
         } catch (UnsupportedJwtException e) {
-            log.info("지원되지 않는 JWT 토큰입니다.", e);
+            log.info("지원되지 않는 JWT 토큰입니다.", e.getMessage());
         } catch (IllegalArgumentException e) {
-            log.info("JWT 토큰이 잘못되었습니다.", e);
+            log.info("JWT 토큰이 잘못되었거나 비어있습니다.", e.getMessage());
         }
         return false;
     }
@@ -160,5 +163,14 @@ public class JwtTokenProvider {
      */
     public String extractUserName(String token) {
         return extractClaim(token, claims -> claims.get("userName", String.class));
+    }
+    
+    /**
+     * @brief JWT 토큰에서 role 클레임을 추출합니다.
+     * @param token role을 추출할 JWT 문자열
+     * @return String role
+     */
+    public String extractRole(String token) {
+        return extractClaim(token, claims -> claims.get("role", String.class));
     }
 }

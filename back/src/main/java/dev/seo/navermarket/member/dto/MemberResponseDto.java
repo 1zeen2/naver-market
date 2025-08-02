@@ -5,22 +5,65 @@ import lombok.Getter;
 import lombok.Setter;
 import lombok.ToString;
 
+import java.time.LocalDate;
+import java.time.LocalDateTime;
+
+import dev.seo.navermarket.member.domain.MemberEntity;
+
+/**
+ * @file MemberResponseDto.java
+ * @brief 마이페이지, 개인 정보 수정 등 사용자의 상세 정보를 조회할 때 사용되는 응답 DTO 클래스입니다.
+ * 보안상 민감하거나 사용자에게 직접 노출할 필요 없는 정보(비밀번호, 권한, 내부 상태 등)는 제외됩니다.
+ */
 @Getter
 @Setter
 @ToString
 @Builder
 public class MemberResponseDto {
-	
-	private Long memberId; // 회원 고유 번호
-    private String userId; // 로그인 ID (마이페이지 등에서 관리 용도로 사용)
-    private String userName; // 실제 이름 (본인 인증 용도, 프론트 노출 최소화)
-    private String nickname; // 사용자의 닉네임
-    private String profileImageUrl; // 프로필 사진 URL (선택 사항, 기본 이미지 경로 가능)
-    private int reputationScore; // 매너 온도/평판 점수 (기본값 0 또는 36.5 등)
-    private int itemsSoldCount; // 판매 완료 상품 수
-    private int itemsBoughtCount; // 구매 완료 상품 수
-    private String areaName; // 현재 설정된 동네/지역 이름 (예: "서초동")
-    private boolean isVerifiedUser; // 본인 인증 여부 (true/false)
-    private String email; // 이메일 (필요하다면 추가)
 
+    private Long memberId;
+    private String userId;
+    private String userName;
+    private String nickname;
+    private String email;
+    private String phone;
+    private LocalDate dateOfBirth;
+    private String gender;          // 성별 (ENUM 값을 String으로)
+    private LocalDateTime joinDate;
+    private String address;         // 주소 (시/군/구까지)
+    private String addressDetail;   // 상세 주소 (읍/면/동 이하 상세 주소)
+    private String profileImageUrl;
+    private Double reputationScore;
+    private Integer itemsSoldCount;
+    private Integer itemsBoughtCount;
+    private String preferredTradeArea; // 선호 거래 지역 이름
+    private Boolean isVerifiedUser; // 본인 인증 여부 (true/false)
+
+    /**
+     * @brief MemberEntity로부터 MemberResponseDto를 생성하는 팩토리 메서드입니다.
+     * @param memberEntity 변환할 MemberEntity 객체
+     * @return MemberResponseDto 변환된 DTO 객체
+     */
+    public static MemberResponseDto fromEntity(MemberEntity memberEntity) {
+    	return MemberResponseDto.builder()
+                .memberId(memberEntity.getMemberId())
+                .userId(memberEntity.getUserId())
+                .userName(memberEntity.getUserName())
+                .nickname(memberEntity.getNickname())
+                .email(memberEntity.getEmail())
+                .phone(memberEntity.getPhone())
+                .dateOfBirth(memberEntity.getDateOfBirth())
+                .gender(memberEntity.getGender().name()) // 직접 name 호출 => enum에 정의된 상수 자체의 String을 반환하는 메서드.
+                .joinDate(memberEntity.getJoinDate())
+                .address(memberEntity.getAddress())
+                .addressDetail(memberEntity.getAddressDetail())
+                .profileImageUrl(memberEntity.getProfileImageUrl())
+                .reputationScore(memberEntity.getReputationScore())
+                .itemsSoldCount(memberEntity.getItemsSoldCount())
+                .itemsBoughtCount(memberEntity.getItemsBoughtCount())
+                .preferredTradeArea(memberEntity.getPreferredTradeArea())
+                .isVerifiedUser(memberEntity.getIsVerifiedUser())
+                .build();
+    }
+    
 }

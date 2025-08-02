@@ -17,8 +17,10 @@ import lombok.Setter;
 @AllArgsConstructor
 @Builder
 public class SignupResponseDto {
+	
 	private Long memberId;
 	private String userId;
-	private String userName;
+	private String nickname;
 	private String message;
+	
 }

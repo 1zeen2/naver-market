@@ -1,7 +1,3 @@
-// components/ui/LoggedInUserInfoBox.tsx
-// 이 파일은 사용자가 로그인했을 때 헤더에 표시되는 사용자 정보 박스 컴포넌트입니다.
-// AuthContext에서 현재 로그인된 사용자 정보와 로그아웃 함수를 가져와 UI를 구성합니다.
-
 "use client";
 
 import React from "react";
@@ -37,7 +33,7 @@ export default function LoggedInUserInfoBox() {
 
   // 표시할 이름 결정: nickname이 있으면 nickname, 없으면 userName을 폴백으로
   // 최종적으로는 nickname만 남을 예정임을 고려
-  const displayUserName = user.nickname || user.userName || user.userId; // userId까지 폴백으로 추가
+   const displayUserName = user.nickname || user.userName;
 
   // 프로필 이미지 URL 결정: 유효한 URL이 없으면 기본 이미지 사용
   const defaultProfileImage = '/images/default-profile.png'; // 이 경로에 기본 이미지 파일이 있어야 합니다.
@@ -94,7 +90,7 @@ export default function LoggedInUserInfoBox() {
         </div>
       </div>
 
-      {/* 주요 메뉴 링크들: 마이페이지 및 상품 등록 페이지로 이동하는 링크 제공. */}
+      {/* 주요 메뉴 링크들 */}
       <div className="flex flex-col gap-2 mb-4">
         <Link href="/mypage" className="text-blue-600 hover:underline text-sm font-medium">
           마이페이지
@@ -102,20 +98,30 @@ export default function LoggedInUserInfoBox() {
         <Link href="/products/register" className="text-orange-600 hover:underline text-sm font-medium">
           상품 등록
         </Link>
-        {/* 채팅, 내 판매/구매 내역 등 추가적인 링크는 여기에 */}
-        <Link href="/messages" className="text-blue-600 hover:underline text-sm font-medium">
+        {/* 쪽지/알림 바로가기 */}
+        <Link href="/messages" className="text-blue-600 hover:underline text-sm font-medium flex items-center">
           쪽지
+          {user.unreadMessageCount !== undefined && user.unreadMessageCount > 0 && (
+            <span className="ml-2 bg-red-500 text-white text-xs font-semibold px-2 py-0.5 rounded-full">
+              {user.unreadMessageCount}
+            </span>
+          )}
         </Link>
-        <Link href="/my-sales" className="text-blue-600 hover:underline text-sm font-medium">
-          내 판매 내역
-        </Link>
-        <Link href="/my-purchases" className="text-blue-600 hover:underline text-sm font-medium">
-          내 구매 내역
-        </Link>
+        {/* 간단한 판매/구매 요약 */}
+        {user.sellingInProgressCount !== undefined && user.sellingInProgressCount > 0 && (
+          <Link href="/my-sales?status=in-progress" className="text-blue-600 hover:underline text-sm font-medium">
+            판매 중인 거래: {user.sellingInProgressCount}개
+          </Link>
+        )}
+        {user.buyingInProgressCount !== undefined && user.buyingInProgressCount > 0 && (
+          <Link href="/my-purchases?status=in-progress" className="text-blue-600 hover:underline text-sm font-medium">
+            구매 진행 중: {user.buyingInProgressCount}개
+          </Link>
+        )}
       </div>
 
       <button
-        onClick={handleLogout} // 함수를 직접 호출하지 않고 참조만 전달
+        onClick={handleLogout}
         className="w-full py-2 px-4 bg-gray-200 text-gray-700 rounded-md hover:bg-gray-300 transition duration-200 text-sm font-medium"
       >
         로그아웃

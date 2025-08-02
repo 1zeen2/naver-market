@@ -15,11 +15,14 @@ export interface User {
   nickname: string; // 핵심 노출 정보
   profileImageUrl?: string; // 선택 사항이므로 optional
   reputationScore?: number; // 선택 사항이므로 optional
-  itemsSoldCount?: number; // 선택 사항이므로 optional
-  itemsBoughtCount?: number; // 선택 사항이므로 optional
+  // itemsSoldCount?: number; // 마이페이지에서 사용
+  // itemsBoughtCount?: number; // 마이페이지에서 사용
   areaName?: string; // 선택 사항이므로 optional
   isVerifiedUser?: boolean; // 선택 사항이므로 optional
   email?: string;
+  sellingInProgressCount?: number;
+  buyingInProgressCount?: number;
+  unreadMessageCount?: number;
 }
 
 // 인증 상태 타입 정의

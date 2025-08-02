@@ -19,6 +19,7 @@ public interface MemberRepository extends JpaRepository<MemberEntity, Long>	{
 	// 회원 가입 시 아이디, 이메일 중복이 있다면 해당 메서드 호출
 	boolean existsByUserId(String userId);
 	boolean existsByEmail(String email);
+	boolean existsByNickname(String nickname);
 	
 	/**
      * @brief 사용자 로그인 ID(userId)로 회원 엔티티를 조회합니다.
@@ -30,18 +31,25 @@ public interface MemberRepository extends JpaRepository<MemberEntity, Long>	{
 	// --- 회원 조회 (관리자 전용 기능) ---
 	
 	/**
+	 * @brief 사용자 이름(userName)이 포함된 회원 엔티티 리스트를 조회합니다.
+	 * @param userName 조회할 사용자 이름 (부분 일치 검색)
+	 * @return List<MemberEntity> 해당 사용자 이름이 포함된 회원 엔티티 리스트
+	 */
+	List<MemberEntity> findByUserNameContaining(String userName);
+	
+	/**
+	 * @brief 사용자 닉네임(nickname)이 포함된 회원 엔티티 리스트를 조회합니다.
+	 * @param nickname 조회할 사용자 닉네임 (부분 일치 검색)
+	 * @return List<MemberEntity> 해당 닉네임이 포함된 회원 엔티티 리스트
+	 */
+	List<MemberEntity> findByNicknameContaining(String userName);
+	
+	/**
      * @brief 이메일(email)로 회원 엔티티를 조회합니다.
      * @param email 조회할 이메일 주소
      * @return Optional<MemberEntity> 해당 이메일을 가진 회원 엔티티 (존재하지 않을 경우 Optional.empty())
      */
     Optional<MemberEntity> findByEmail(String email);
-    
-    /**
-     * @brief 사용자 이름(userName)이 포함된 회원 엔티티 리스트를 조회합니다.
-     * @param userName 조회할 사용자 이름 (부분 일치 검색)
-     * @return List<MemberEntity> 해당 사용자 이름이 포함된 회원 엔티티 리스트
-     */
-    List<MemberEntity> findByUserNameContaining(String userName);
     
     /**
      * @brief 특정 상태의 회원 엔티티 리스트를 조회합니다. (예: ACTIVE, SUSPENDED 등)

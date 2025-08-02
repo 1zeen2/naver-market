@@ -155,7 +155,7 @@ public class ProductServiceImpl implements ProductService {
                 .price(requestDto.getPrice())
                 .category(requestDto.getCategory())
                 .mainImageUrl(mainImageUrl)
-                .preferredTradeLocation(requestDto.getPreferredTradeLocation())
+                .tradeAreaMain(requestDto.getTradeAreaDetail())
                 .seller(seller) // 판매자 엔티티 연결
                 .status(ProductStatus.ACTIVE) // 기본 상태는 ACTIVE
                 .views(0) // 초기 조회수 0
@@ -240,7 +240,9 @@ public class ProductServiceImpl implements ProductService {
                 requestDto.getPrice() != null ? requestDto.getPrice() : existingProduct.getPrice(),
                 requestDto.getCategory() != null ? requestDto.getCategory() : existingProduct.getCategory(),
                 newMainImageUrl, // 업데이트된 메인 이미지 URL
-                requestDto.getPreferredTradeLocation() != null ? requestDto.getPreferredTradeLocation() : existingProduct.getPreferredTradeLocation()
+                requestDto.getTradeAreaMain() != null ? requestDto.getTradeAreaMain() : existingProduct.getTradeAreaMain(),
+                requestDto.getTradeAreaSub() != null ? requestDto.getTradeAreaSub() : existingProduct.getTradeAreaSub(),
+                requestDto.getTradeAreaDetail() != null ? requestDto.getTradeAreaDetail() : existingProduct.getTradeAreaDetail()
         );
         // updatedAt은 Auditing이 자동 처리하므로 수동 설정 제거
 

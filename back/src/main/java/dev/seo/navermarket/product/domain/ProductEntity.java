@@ -43,7 +43,7 @@ public class ProductEntity {
     private Long productId;
 
 	@ManyToOne(fetch = FetchType.LAZY)
-    @JoinColumn(name = "seller_id", nullable = false)
+    @JoinColumn(name = "member_id", nullable = false)
     private MemberEntity seller; // MySQL의 member_id 인덱스와 매핑
 
     @Column(name = "title", nullable = false, length = 255)
@@ -79,8 +79,15 @@ public class ProductEntity {
     @Column(name = "main_image_url", nullable = false, length = 255)
     private String mainImageUrl;
     
-    @Column(name = "preferred_trade_location", nullable = false, length = 100)
-    private String preferredTradeLocation;
+    @Column(name = "trade_area_main", nullable = false)
+    private String tradeAreaMain;
+    
+    @Column(name = "trade_area_sub", nullable = false)
+    private String tradeAreaSub;
+    
+    @Column(name = "trade_area_detail", nullable = false)
+    private String tradeAreaDetail;
+    
     
     // ProductDetailImage 엔티티와의 1:N 관계 설정
     // mappedBy: ProductDetailImage 엔티티의 'product' 필드에 의해 매핑됨을 나타냅니다.
@@ -140,13 +147,15 @@ public class ProductEntity {
      * @param preferredTradeLocation 새로운 거래 희망 지역
      */
     public void updateProduct(String title, String description, Long price, String category,
-            String mainImageUrl, String preferredTradeLocation) {
+            String mainImageUrl, String tradeAreaMain, String tradeAreaSub, String tradeAreaDetail) {
 		this.title = title;
 		this.description = description;
 		this.price = price;
 		this.category = category;
 		this.mainImageUrl = mainImageUrl;
-		this.preferredTradeLocation = preferredTradeLocation;
+		this.tradeAreaMain = tradeAreaMain;
+		this.tradeAreaSub = tradeAreaSub;
+		this.tradeAreaDetail = tradeAreaDetail;
 	}
     
     /**

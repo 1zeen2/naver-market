@@ -1,10 +1,5 @@
 package dev.seo.navermarket.member.restcontroller;
 
-import java.util.HashMap;
-import java.util.Map;
-
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.GetMapping;
@@ -19,8 +14,8 @@ import dev.seo.navermarket.member.dto.LoginResponseDto;
 import dev.seo.navermarket.member.dto.SignupRequestDto;
 import dev.seo.navermarket.member.dto.SignupResponseDto;
 import dev.seo.navermarket.member.service.AuthService;
-import dev.seo.navermarket.security.jwt.JwtTokenProvider;
 import lombok.RequiredArgsConstructor;
+import lombok.extern.slf4j.Slf4j;
 
 /**
  * @file AuthRestController.java
@@ -30,12 +25,10 @@ import lombok.RequiredArgsConstructor;
 @RestController
 @RequestMapping("/api/auth")
 @RequiredArgsConstructor
+@Slf4j
 public class AuthRestController {
 
     private final AuthService authService;
-    private final JwtTokenProvider jwtTokenProvider;
-    
-    private static final Logger log = LoggerFactory.getLogger(AuthRestController.class);
     
     /**
      * @brief 사용자 회원가입을 처리하는 API 엔드포인트입니다.
@@ -46,8 +39,6 @@ public class AuthRestController {
     @PostMapping("/signup")
     public ResponseEntity<SignupResponseDto> signup(@RequestBody SignupRequestDto requestDto) {
         SignupResponseDto responseDto = authService.signup(requestDto);
-        
-        // 201 Created 상태 코드와 함께 응답 DTO 반환
         return ResponseEntity.status(HttpStatus.CREATED).body(responseDto);
     }
     
@@ -60,55 +51,36 @@ public class AuthRestController {
      */
     @PostMapping("/login")
     public ResponseEntity<LoginResponseDto> login(@RequestBody LoginRequestDto loginRequestDto) {
-    	LoginResponseDto response = authService.login(loginRequestDto);
-    	return ResponseEntity.ok(response); // 200 OK 상태 코드와 함께 로그인 응답 반환
+        LoginResponseDto response = authService.login(loginRequestDto);
+        return ResponseEntity.ok(response);
     }
     
     /**
      * @brief 현재 로그인된 사용자 정보를 JWT 토큰을 통해 조회하는 API 엔드포인트입니다.
      * GET /api/auth/me
      * @param authorizationHeader Authorization 헤더 (Bearer JWT_TOKEN)
-     * @return ResponseEntity<Map<String, Object>> 사용자 정보 (userId, memberId, userName)와 HTTP 상태 코드
+     * @return ResponseEntity<LoginResponseDto> 사용자 정보 DTO와 HTTP 상태 코드
      */
     @GetMapping("/me")
-    public ResponseEntity<Map<String, Object>> getMyInfo(@RequestHeader(value = "Authorization", required = false) String authorizationHeader) {
+    public ResponseEntity<LoginResponseDto> getMyInfo(@RequestHeader(value = "Authorization", required = false) String authorizationHeader) {
         log.info("사용자 정보 조회 요청 수신.");
 
-        // Authorization 헤더가 없거나 'Bearer '로 시작하지 않으면 UNAUTHORIZED 반환
         if (authorizationHeader == null || !authorizationHeader.startsWith("Bearer ")) {
             log.warn("Authorization 헤더가 없거나 'Bearer '로 시작하지 않습니다.(토큰 부재)");
-            return ResponseEntity.status(HttpStatus.UNAUTHORIZED).body(Map.of("message", "토큰이 유효하지 않습니다."));
+            // HTTP 401 Unauthorized 응답. body는 LoginResponseDto의 기본 값 또는 null
+            return ResponseEntity.status(HttpStatus.UNAUTHORIZED)
+                                 .body(LoginResponseDto.builder().token(null).userId("").build()); // 최소 필드만 채움
         }
-
+        
         // "Bearer " 접두사 제거하여 순수 토큰 문자열 추출
         String token = authorizationHeader.substring(7);
-
-        // JWT 토큰 유효성 검사
-        if (!jwtTokenProvider.validateToken(token)) {
-            log.warn("유효하지 않거나 만료된 JWT 토큰입니다.");
-            return ResponseEntity.status(HttpStatus.UNAUTHORIZED).body(Map.of("message", "토큰이 유효하지 않거나 만료되었습니다."));
-        }
-
-        try {
-            // 토큰에서 사용자 정보 추출
-            String userId = jwtTokenProvider.extractUserId(token);
-            Long memberId = jwtTokenProvider.extractMemberId(token);
-            String userName = jwtTokenProvider.extractUserName(token);
-
-            // 추출된 사용자 정보를 Map에 담아 반환
-            Map<String, Object> userInfo = new HashMap<>();
-            userInfo.put("memberId", memberId);
-            userInfo.put("userId", userId);
-            userInfo.put("userName", userName);
-            
-            log.info("사용자 정보 반환: userId={}", userId);
-            return ResponseEntity.ok(userInfo);
-
-        } catch (Exception e) {
-            // 토큰 파싱 또는 정보 추출 중 예외 발생 시 INTERNAL_SERVER_ERROR 반환
-            log.error("JWT 토큰에서 사용자 정보 추출 중 오류 발생: {}", e.getMessage(), e);
-            return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR).body(Map.of("message", "사용자 정보 처리 중 오류가 발생했습니다."));
-        }
+        
+        // JWT 관련 로직을 AuthService로 위임
+        // AuthService에서 InvalidTokenException, UserNotFoundException 등을 던질 것이므로
+        // 여기서는 별도의 try-catch 없이 GlobalExceptionHandler에 위임합니다.
+        LoginResponseDto userInfo = authService.getAuthenticatedUserInfo(token);
+        log.info("사용자 정보 반환: userId={}", userInfo.getUserId());
+        return ResponseEntity.ok(userInfo);
     }
 
 }

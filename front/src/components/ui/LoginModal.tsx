@@ -6,6 +6,7 @@ import { AppDispatch } from "@/store";
 import { loginSuccess } from "@/store/authSlice";
 import api from "@/api/api";
 import axios from "axios";
+import { User } from "@/store/authSlice";
 
 interface ModalProps {
   isOpen: boolean;
@@ -81,34 +82,37 @@ export default function LoginModal({ isOpen, closeModal }: ModalProps) {
         nickname,
         profileImageUrl,
         reputationScore,
-        itemsSoldCount,
-        itemsBoughtCount,
         areaName,
         isVerifiedUser,
         email,
+        sellingInProgressCount,
+        buyingInProgressCount,
+        unreadMessageCount,
       } = response.data; // <<-- 여기서 모든 필드를 직접 가져옵니다.
+
+      const loggedInUser: User = {
+        memberId: memberId,
+        userId: resUserId,
+        userName: userName,
+        nickname: nickname,
+        profileImageUrl: profileImageUrl,
+        reputationScore: reputationScore,
+        areaName: areaName,
+        isVerifiedUser: isVerifiedUser,
+        email: email,
+        sellingInProgressCount: sellingInProgressCount,
+        buyingInProgressCount: buyingInProgressCount,
+        unreadMessageCount: unreadMessageCount,
+      }
       
       // 백엔드 LoginResponseDto 구조: { token:, memberId:, userId:, userName: }
-      if (token && memberId && resUserId && userName) {
+      if (token && loggedInUser.memberId && loggedInUser.userId && loggedInUser.userName) {
         dispatch(loginSuccess({
           accessToken: token,
-          user: { // user 객체는 response.data에서 가져온 필드들로 직접 구성됩니다.
-            memberId: memberId,
-            userId: resUserId,
-            userName: userName,
-            nickname: nickname || null, // 백엔드에서 null로 올 수 있거나 없을 경우 대비
-            profileImageUrl: profileImageUrl || null,
-            reputationScore: reputationScore || 0, // 숫자 타입에 대한 기본값
-            itemsSoldCount: itemsSoldCount || 0,
-            itemsBoughtCount: itemsBoughtCount || 0,
-            areaName: areaName || null,
-            isVerifiedUser: isVerifiedUser || false, // boolean 타입에 대한 기본값
-            email: email || null,
-          },
+          user: loggedInUser, // 구성된 user 객체를 전달
         }));
         closeModal();
       } else {
-        // 필수 필드가 누락된 경우의 에러 메시지
         setError('로그인 응답 형식이 올바르지 않습니다. 필수 사용자 정보가 누락되었습니다.');
         console.error('로그인 응답 형식 오류 (필드 누락):', response.data);
       }

@@ -30,6 +30,8 @@ public class ProductUpdateRequestDto {
     
     private String description;
     
-    private String preferredTradeLocation;
+    private String tradeAreaMain;
+    private String tradeAreaSub;
+    private String tradeAreaDetail;
 	
 }

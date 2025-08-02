@@ -4,6 +4,7 @@ import lombok.AllArgsConstructor;
 import lombok.Builder;
 import lombok.Getter;
 import lombok.NoArgsConstructor;
+import lombok.extern.slf4j.Slf4j;
 
 import java.math.BigDecimal;
 import java.time.LocalDateTime;
@@ -20,18 +21,20 @@ import dev.seo.navermarket.product.domain.ProductStatus;
 @Builder
 @NoArgsConstructor
 @AllArgsConstructor
+@Slf4j
 public class ProductListResponseDto {
 	private Long productId;
     private Long sellerId; // 판매자 고유 ID (PK)
-    private String sellerUserId; // 판매자 로그인 ID
+    private String sellerNickname;
     private String title;
     private Long price;
     private String category;
     private String mainImageUrl;
-    private String preferredTradeLocation;
+    private String tradeAreaDetail;
     private ProductStatus status;
     private Integer views;
     private LocalDateTime createdAt;
+    private LocalDateTime updatedAt;
     
     /**
      * @brief ProductEntity로부터 ProductListResponseDto를 생성하는 팩토리 메서드입니다.
@@ -40,27 +43,28 @@ public class ProductListResponseDto {
      */
     public static ProductListResponseDto fromEntity(ProductEntity productEntity) {
     	Long sellerId = null;
-        String sellerUserId = null;
+        String sellerNickname = null;
         
         if (productEntity.getSeller() != null) {
             sellerId = productEntity.getSeller().getMemberId();
-            sellerUserId = productEntity.getSeller().getUserId();
+            sellerNickname = productEntity.getSeller().getNickname();
         } else {
-            System.err.println("경고: ProductEntity " + productEntity.getProductId() + "의 판매자 정보가 null입니다. 데이터 무결성 확인이 필요합니다.");
+            log.error("경고: ProductEntity {}의 판매자 정보가 null입니다. 데이터 무결성 확인이 필요합니다.");
         }
 
         return ProductListResponseDto.builder()
                 .productId(productEntity.getProductId())
                 .sellerId(sellerId) // 안전하게 설정
-                .sellerUserId(sellerUserId) // 안전하게 설정
+                .sellerNickname(sellerNickname) // 안전하게 설정
                 .title(productEntity.getTitle())
                 .price(productEntity.getPrice())
                 .category(productEntity.getCategory())
                 .mainImageUrl(productEntity.getMainImageUrl())
-                .preferredTradeLocation(productEntity.getPreferredTradeLocation())
+                .tradeAreaDetail(productEntity.getTradeAreaDetail())
                 .status(productEntity.getStatus())
                 .views(productEntity.getViews())
                 .createdAt(productEntity.getCreatedAt())
+                .updatedAt(productEntity.getUpdatedAt())
                 .build();
     }
 }

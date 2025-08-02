@@ -28,5 +28,14 @@ public interface AuthService {
      * @throws RuntimeException 로그인 실패 시 (예: 사용자 없음, 비밀번호 불일치)
      */
 	LoginResponseDto login(LoginRequestDto loginRequestDto);
-	
+
+    /**
+     * @brief JWT 토큰에서 사용자 정보를 추출하여 LoginResponseDto 형태로 반환합니다.
+     * @param token 유효한 JWT 토큰 문자열
+     * @return LoginResponseDto 토큰에서 추출된 사용자 정보 및 DB에서 조회된 최신 정보
+     * @throws dev.seo.navermarket.common.exception.InvalidTokenException 토큰이 유효하지 않거나 만료되었을 때
+     * @throws dev.seo.navermarket.common.exception.UserNotFoundException 토큰의 memberId로 사용자를 찾을 수 없을 때
+     */
+    LoginResponseDto getAuthenticatedUserInfo(String token);
+    
 }

@@ -40,6 +40,6 @@ public class ProductCreateRequestDto {
 	
 	// 거래 희망 지역 필드
 	@NotBlank(message = "거래 희망 지역은 필수 입니다.")
-	private String preferredTradeLocation;
+	private String tradeAreaDetail;
 	
 }
