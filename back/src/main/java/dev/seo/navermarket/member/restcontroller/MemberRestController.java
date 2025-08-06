@@ -1,7 +1,5 @@
 package dev.seo.navermarket.member.restcontroller;
 
-import java.util.*;
-
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PathVariable;
@@ -11,6 +9,7 @@ import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RestController;
 
+import dev.seo.navermarket.common.dto.CheckResponseDto;
 import dev.seo.navermarket.member.dto.ChangePasswordRequestDto;
 import dev.seo.navermarket.member.service.MemberService;
 import jakarta.validation.Valid;
@@ -26,54 +25,55 @@ public class MemberRestController {
 	
 	private final MemberService memberService;
 	
-	// 아이디 중복 확인 API EndPoint: GET 요청으로 쿼리 파라미터를 받음
+	/**
+     * @brief 아이디, 닉네임, 이메일 중복 확인 로직의 공통 부분을 처리하는 헬퍼 메서드입니다.
+     * @param value 확인할 값 (아이디, 닉네임, 이메일)
+     * @param type 값의 종류 (예: "아이디", "닉네임", "이메일")
+     * @param duplicationCheckFn 중복 확인을 수행할 서비스 메서드 (예: memberService::checkUserIdDuplication)
+     * @return CheckResponseDto 중복 확인 결과 DTO
+     */
+	private ResponseEntity<CheckResponseDto> handleDuplicationCheck(String value, String type, java.util.function.Function<String, Boolean> duplicationCheckFn) {
+		if (value == null || value.trim().isEmpty()) {
+			log.warn("{} 입력 후 중복 확인을 해주세요", type);
+			return ResponseEntity.badRequest().body(CheckResponseDto.builder()
+					.isAvailable(false)
+					.message(type + "는 필수 입력 항목입니다.")
+					.build());
+		}
+		
+		boolean isDuplicate = duplicationCheckFn.apply(value);
+		
+		String message;
+		
+		if (!isDuplicate) {
+			message = "사용 가능한 " + type + " 입니다.";
+		} else {
+			message = "이미 사용 중인 " + type + " 입니다.";
+		}
+		log.info("{} 중복 확인 '{}': isAvailable={}", type, value, !isDuplicate);
+		
+		return ResponseEntity.ok(CheckResponseDto.builder()
+				.isAvailable(isDuplicate)
+				.message(message)
+				.build());
+	}
+	
+	// 아이디 중복 확인 API EndPoint
     @GetMapping("/check-id")
-    public ResponseEntity<Map<String, Object>> checkUserId(@RequestParam String userId) {
-    	Map<String, Object> response = new HashMap<>();
-    	
-        if (userId == null || userId.trim().isEmpty()) {
-        	log.warn("아이디 입력 후 중복 확인을 해주세요.");
-            response.put("isAvailable", false);
-            response.put("message", "아이디는 필수 항목입니다.");
-            return ResponseEntity.badRequest().body(response);
-        }
-        
-        boolean isDuplicate = memberService.checkUserIdDuplication(userId);
-
-        response.put("isAvailable", !isDuplicate);
-        if (!isDuplicate) {
-        	response.put("message", "사용 가능한 아이디 입니다.");
-        } else {
-        	response.put("message", "이미 사용 중인 아이디 입니다.");
-        }
-        log.info("아이디 중복 확인 '{}': isAvailable={}", userId, !isDuplicate);
-        
-        return ResponseEntity.ok(response);
+    public ResponseEntity<CheckResponseDto> checkUserId(@RequestParam String userId) {
+        return handleDuplicationCheck(userId, "아이디", memberService::checkUserIdDuplication);
     }
     
     // 이메일 중복 확인 API EndPoint
     @GetMapping("/check-email")
-    public ResponseEntity<Map<String, Object>> checkEmail(@RequestParam String email) {
-        Map<String, Object> response = new HashMap<>();
-
-        if (email == null || email.trim().isEmpty()) {
-            log.warn("이메일 입력 후 중복 확인을 해주세요");
-            response.put("isAvailable", false);
-            response.put("message", "이메일은 필수 항목입니다.");
-            return ResponseEntity.badRequest().body(response);
-        }
-
-        boolean isDuplicate = memberService.checkEmailDuplication(email);
-
-        response.put("isAvailable", !isDuplicate);
-        if (!isDuplicate) {
-            response.put("message", "사용 가능한 이메일입니다.");
-        } else {
-            response.put("message", "이미 가입되어있는 이메일입니다.");
-        }
-        log.info("이메일 중복 확인 '{}': isAvailable={}", email, !isDuplicate);
-
-        return ResponseEntity.ok(response);
+    public ResponseEntity<CheckResponseDto> checkEmail(@RequestParam String email) {
+        return handleDuplicationCheck(email, "이메일", memberService::checkEmailDuplication);
+    }
+    
+ // 닉네임 중복 확인 Api EndPoint
+    @GetMapping("/check-nickname")
+    public ResponseEntity<CheckResponseDto> checkNickname(@RequestParam String nickname) {
+        return handleDuplicationCheck(nickname, "닉네임", memberService::checkNicknameDuplication);
     }
 	
     /**

@@ -6,120 +6,71 @@ import jakarta.servlet.http.HttpServletRequest;
 import jakarta.servlet.http.HttpServletResponse;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
-
-import org.springframework.security.authentication.UsernamePasswordAuthenticationToken;
+import org.springframework.security.core.Authentication;
 import org.springframework.security.core.context.SecurityContextHolder;
-import org.springframework.security.core.userdetails.UserDetails;
-import org.springframework.security.web.authentication.WebAuthenticationDetailsSource;
-import org.springframework.web.filter.OncePerRequestFilter; // 요청당 한 번만 실행되는 필터 임포트
-
-import dev.seo.navermarket.security.CustomUserDetailsService;
-import io.jsonwebtoken.JwtException;
+import org.springframework.stereotype.Component;
+import org.springframework.util.StringUtils;
+import org.springframework.web.filter.OncePerRequestFilter;
 
 import java.io.IOException;
 
 /**
- * @file JwtAuthenticationFilter.java
- * @brief JWT 토큰을 검증하고 Spring Security 컨텍스트에 인증 정보를 설정하는 필터입니다.
- * 모든 HTTP 요청에 대해 한 번씩 실행됩니다.
+ * JWT 토큰을 사용하여 요청을 인증하는 필터입니다.
+ * 모든 요청에 대해 한 번만 실행되도록 OncePerRequestFilter를 상속합니다.
  */
 @Slf4j
-@RequiredArgsConstructor // final 필드에 대한 생성자를 자동으로 생성합니다.
+@Component
+@RequiredArgsConstructor
 public class JwtAuthenticationFilter extends OncePerRequestFilter {
 
+    public static final String AUTHORIZATION_HEADER = "Authorization";
+    public static final String BEARER_PREFIX = "Bearer ";
 
     private final JwtTokenProvider jwtTokenProvider; // JWT 토큰 생성 및 검증 유틸리티 주입
-    private final CustomUserDetailsService customUserDetailsService;
 
     /**
-     * @brief 모든 HTTP 요청에 대해 JWT 토큰을 검증하고 인증을 처리합니다.
+     * 실제 필터링 로직을 수행하는 메서드입니다.
+     * 요청 헤더에서 JWT 토큰을 추출하고 유효성을 검증하여 SecurityContext에 Authentication 객체를 설정합니다.
      *
-     * @param request HTTP 요청 객체
-     * @param response HTTP 응답 객체
-     * @param filterChain 필터 체인 (다음 필터로 요청을 전달)
+     * @param request HttpServletRequest 객체
+     * @param response HttpServletResponse 객체
+     * @param filterChain FilterChain 객체
      * @throws ServletException 서블릿 예외 발생 시
      * @throws IOException 입출력 예외 발생 시
      */
     @Override
     protected void doFilterInternal(HttpServletRequest request, HttpServletResponse response, FilterChain filterChain)
             throws ServletException, IOException {
+        // 1. Request Header에서 토큰 추출
+        String jwt = resolveToken(request);
 
-        // 1. 요청 URI 로그 (필터가 어떤 요청에 대해 동작하는지 확인)
-        log.debug("### JwtAuthenticationFilter.doFilterInternal - Request URI: {}", request.getRequestURI());
-
-        String jwt = null;
-        String authorizationHeader = request.getHeader("Authorization");
-
-        // 2. Authorization 헤더 존재 여부 및 값 로그
-        log.debug("### JwtAuthenticationFilter - Received Authorization header: {}", 
-                  authorizationHeader != null ? authorizationHeader.substring(0, Math.min(authorizationHeader.length(), 50)) + "..." : "null");
-
-        if (authorizationHeader != null && authorizationHeader.startsWith("Bearer ")) {
-            jwt = authorizationHeader.substring(7);
-            // 3. 추출된 JWT 토큰 로그 (보안을 위해 일부만 로깅)
-            log.debug("### JwtAuthenticationFilter - Extracted JWT: {}", jwt.substring(0, Math.min(jwt.length(), 20)) + "...");
+        // 2. validateToken으로 토큰 유효성 검사
+        if (StringUtils.hasText(jwt) && jwtTokenProvider.validateToken(jwt)) {
+            // 토큰이 유효할 경우, 토큰으로부터 Authentication 객체를 가져와 SecurityContext에 저장
+            Authentication authentication = jwtTokenProvider.getAuthentication(jwt);
+            SecurityContextHolder.getContext().setAuthentication(authentication);
+            log.debug("Security Context에 '{}' 인증 정보를 저장했습니다, uri: {}", authentication.getName(), request.getRequestURI());
         } else {
-            log.debug("### JwtAuthenticationFilter - Authorization header missing or not starting with Bearer. Skipping JWT authentication.");
+            log.debug("유효한 JWT 토큰이 없습니다, uri: {}", request.getRequestURI());
         }
 
-        if (jwt != null) {
-            try {
-                if (jwtTokenProvider.validateToken(jwt)) {
-                    String userId = jwtTokenProvider.extractUserId(jwt);
-                    log.debug("### JwtAuthenticationFilter - Token is valid. Extracted userId: {}", userId);
-
-                    // 이미 인증된 사용자인지 확인 (중복 인증 방지)
-                    if (SecurityContextHolder.getContext().getAuthentication() == null || 
-                        !SecurityContextHolder.getContext().getAuthentication().getName().equals(userId)) {
-                        
-                        UserDetails userDetails = customUserDetailsService.loadUserByUsername(userId);
-                        if (userDetails != null) {
-                            UsernamePasswordAuthenticationToken authentication =
-                                    new UsernamePasswordAuthenticationToken(userDetails, null, userDetails.getAuthorities());
-                            authentication.setDetails(new WebAuthenticationDetailsSource().buildDetails(request));
-                            
-                            SecurityContextHolder.getContext().setAuthentication(authentication);
-                            log.info("### JwtAuthenticationFilter - User '{}' authenticated successfully. SecurityContextHolder updated.", userId);
-                        } else {
-                            log.warn("### JwtAuthenticationFilter - UserDetails could not be loaded for userId: {}", userId);
-                        }
-                    } else {
-                        log.debug("### JwtAuthenticationFilter - User '{}' is already authenticated. Skipping authentication.", userId);
-                    }
-                } else {
-                    log.warn("### JwtAuthenticationFilter - JWT token is invalid or expired. Path: {}", request.getRequestURI());
-                }
-            } catch (JwtException e) {
-                // JWT 토큰 관련 구체적인 예외 (서명 오류, 만료 등)
-                log.warn("### JwtAuthenticationFilter - JWT exception for URI {}: {}", request.getRequestURI(), e.getMessage());
-            } catch (Exception e) {
-                // 그 외 예상치 못한 예외
-                log.error("### JwtAuthenticationFilter - An unexpected error occurred during authentication for URI {}: {}", request.getRequestURI(), e.getMessage(), e);
-            }
-        } else {
-             // JWT가 null인 경우에도, 요청이 필터 체인을 계속 통과하도록 합니다.
-             // permitAll() 경로 등에 대해서는 인증이 필요 없으므로 SecurityContextHolder가 비어있어도 됩니다.
-            log.debug("### JwtAuthenticationFilter - No JWT token found in request. Path: {}", request.getRequestURI());
-        }
-
-        // 다음 필터로 요청 전달
+        // 다음 필터로 요청을 전달
         filterChain.doFilter(request, response);
-        log.debug("### JwtAuthenticationFilter.doFilterInternal - Finished processing for URI: {}", request.getRequestURI());
     }
 
     /**
-     * @brief HTTP 요청에서 JWT 토큰을 추출합니다.
-     * Authorization 헤더에서 "Bearer " 접두사를 제거한 후 토큰을 반환합니다.
+     * Request Header에서 토큰 정보를 추출하는 헬퍼 메서드입니다.
+     * "Bearer " 접두사를 제거하고 실제 JWT 문자열을 반환합니다.
      *
-     * @param request HTTP 요청 객체
-     * @return 추출된 JWT 토큰 문자열 또는 null
+     * @param request HttpServletRequest 객체
+     * @return 추출된 JWT 토큰 문자열 (없으면 null)
      */
-    private String getJwtFromRequest(HttpServletRequest request) {
-        String bearerToken = request.getHeader("Authorization");
-        log.debug("Jwt Filter: 헤더에서 받은 인증:{}", bearerToken != null ? bearerToken : null);
-        if (bearerToken != null && bearerToken.startsWith("Bearer ")) {
-            return bearerToken.substring(7);
+    private String resolveToken(HttpServletRequest request) {
+        String bearerToken = request.getHeader(AUTHORIZATION_HEADER);
+        if (StringUtils.hasText(bearerToken) && bearerToken.startsWith(BEARER_PREFIX)) {
+            return bearerToken.substring(BEARER_PREFIX.length());
         }
         return null;
     }
+    
 }

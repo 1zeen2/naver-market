@@ -21,6 +21,8 @@ public interface MemberRepository extends JpaRepository<MemberEntity, Long>	{
 	boolean existsByEmail(String email);
 	boolean existsByNickname(String nickname);
 	
+	// --- 회원 조회 (관리자 전용 기능) ---
+
 	/**
      * @brief 사용자 로그인 ID(userId)로 회원 엔티티를 조회합니다.
      * @param userId 조회할 사용자 로그인 ID
@@ -28,21 +30,12 @@ public interface MemberRepository extends JpaRepository<MemberEntity, Long>	{
      */
 	Optional<MemberEntity> findByUserId(String userId);
 	
-	// --- 회원 조회 (관리자 전용 기능) ---
-	
-	/**
-	 * @brief 사용자 이름(userName)이 포함된 회원 엔티티 리스트를 조회합니다.
-	 * @param userName 조회할 사용자 이름 (부분 일치 검색)
-	 * @return List<MemberEntity> 해당 사용자 이름이 포함된 회원 엔티티 리스트
-	 */
-	List<MemberEntity> findByUserNameContaining(String userName);
-	
 	/**
 	 * @brief 사용자 닉네임(nickname)이 포함된 회원 엔티티 리스트를 조회합니다.
 	 * @param nickname 조회할 사용자 닉네임 (부분 일치 검색)
 	 * @return List<MemberEntity> 해당 닉네임이 포함된 회원 엔티티 리스트
 	 */
-	List<MemberEntity> findByNicknameContaining(String userName);
+	List<MemberEntity> findByNicknameContaining(String nickName);
 	
 	/**
      * @brief 이메일(email)로 회원 엔티티를 조회합니다.

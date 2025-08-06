@@ -75,7 +75,7 @@ export default function LoginModal({ isOpen, closeModal }: ModalProps) {
       const response = await api.post('/api/auth/login', { userId, userPwd });
 
       const {
-        token,
+        accessToken,
         memberId,
         userId: resUserId, // 컴포넌트의 userId 상태와 충돌 방지를 위해 별칭 사용
         userName,
@@ -97,7 +97,7 @@ export default function LoginModal({ isOpen, closeModal }: ModalProps) {
         nickname: nickname,
         profileImageUrl: profileImageUrl,
         reputationScore: reputationScore,
-        areaName: areaName,
+        preferredTradeArea: areaName,
         isVerifiedUser: isVerifiedUser,
         email: email,
         sellingInProgressCount: sellingInProgressCount,
@@ -105,10 +105,10 @@ export default function LoginModal({ isOpen, closeModal }: ModalProps) {
         unreadMessageCount: unreadMessageCount,
       }
       
-      // 백엔드 LoginResponseDto 구조: { token:, memberId:, userId:, userName: }
-      if (token && loggedInUser.memberId && loggedInUser.userId && loggedInUser.userName) {
+      // 백엔드 LoginResponseDto 구조: { accessToken:, memberId:, userId:, userName: }
+      if (accessToken && loggedInUser.memberId && loggedInUser.userId && loggedInUser.userName) {
         dispatch(loginSuccess({
-          accessToken: token,
+          accessToken: accessToken,
           user: loggedInUser, // 구성된 user 객체를 전달
         }));
         closeModal();

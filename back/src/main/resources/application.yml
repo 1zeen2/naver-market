@@ -1,37 +1,33 @@
-# application.yml
-
 # Port Configuration
 server:
-  port: 80
-  servlet: # Servlet 관련 설정 (Spring Boot 3.x 최신 권장)
+  port: 8080
+  servlet:
     encoding:
       charset: UTF-8
-      enabled: true  # HTTP 인코딩 필터 활성화
-      force: true    # 모든 요청에 대해 강제로 인코딩 적용 (필수)
+      enabled: true
+      force: true
 
 # Database Configuration
 spring:
   datasource:
-    url: jdbc:mysql://localhost:3306/naver_market?autoReconnect=true&useSSL=false&serverTimezone=UTC&allowPublicKeyRetrieal=true
+    url: jdbc:mysql://localhost:3306/naver_market?autoReconnect=true&useSSL=false&serverTimezone=UTC&allowPublicKeyRetrieval=true
     username: root
     password: happy
     driver-class-name: com.mysql.cj.jdbc.Driver
 
   jpa:
     database: mysql
+    show_sql: false
+    properties:
+      hibernate.format_sql: true
+      hibernate.user_sql_comments: true # 개발 환경에서 SQL 가독성을 높여줍니다.
     hibernate:
-      ddl-auto: update  # 권장되는 ddl-auto 옵션 (none, update, create, create-drop 중 선택)
-      naming-strategy: org.hibernate.boot.model.naming.PhysicalNamingStrategyStandardImpl  # Naming strategy
-      properties:
-        hibernate:
-          dialect: org.hibernate.dialect.MySQLDialect
-          storage_engine: innodb
-          show_sql: true
-          format_sql: true
-          user_sql_comments: true # 개발 환경에서 SQL 가독성을 높여줍니다.
+      ddl-auto: update
+      dialect: org.hibernate.dialect.MySQL8Dialect
+      naming-strategy: org.hibernate.boot.model.naming.PhysicalNamingStrategyStandardImpl
 
   thymeleaf: # Thymeleaf 사용 시 관련 설정
-    cache: false # 개발 중에는 false로 설정하여 변경사항 즉시 반영
+    cache: false
     encoding: UTF-8
     prefix: classpath:templates/
     suffix: .html
@@ -39,46 +35,48 @@ spring:
   servlet: # Multipart (파일 업로드) 설정
     multipart:
       enabled: true
-      max-file-size: 10MB # 개별 파일 최대 크기
-      max-request-size: 100MB # 전체 요청 (모든 파일 + 폼 데이터) 최대 크기
+      max-file-size: 10MB
+      max-request-size: 100MB
       file-size-threshold: 0 # 이 크기 이상부터 파일 시스템에 임시 저장 (0으로 설정 시 항상 메모리에 저장하지 않고 바로 파일로)
 
 # JWT Configuration
 jwt:
-  secret: bmF2ZXJtYXJrZXRwcm9qZWN0and0dG9rZW5zZWNyZXRrZXk= # BASE64 인코딩된 시크릿 키
-  expiration: 86400000 # 24시간 = 24 * 60 * 60 * 1000 밀리초
+  # secret: ${JWT_SECRET_KEY:bmF2ZXJtYXJrZXRwcm9qZWN0and0dG9rZW5zZWNyZXRrZXk=} # 기존 환경 변수 참조 주석 처리
+  secret: bmF2ZXJtYXJrZXRwcm9qZWN0and0dG9rZW5zZWNyZXRrZXk=
+  access-token-expiration-ms: 1800000 # 30 * 60 * 1000 = 30분
+  refresh-token-expiration-ms: 604800000 # 7 * 24 * 60 * 60 * 1000 = 7일
 
 # File Upload Directory (Backend 서버 기준 로컬 경로)
 file:
-  upload-dir: C:/naver-market-uploads
+  upload-dir: ${FILE_UPLOAD_DIR:/app/uploads}
 
 # Logging Configuration (콘솔 로그 한글 깨짐 방지 및 상세 로깅 설정)
 logging:
   charset:
-    console: UTF-8 # 콘솔 출력 문자 인코딩 설정
-    file: UTF-8   # 로그 파일 출력 문자 인코딩 설정 (로그 파일을 쓰는 경우)
+    console: UTF-8
+    file: UTF-8
 
   level: # 특정 패키지 및 기능에 대한 로그 레벨 설정
-    dev.seo.navermarket.security: DEBUG
+    dev.seo.navermarket: INFO
     root: INFO
     org:
       springframework:
-        transaction: TRACE # 트랜잭션 관련 상세 로그
+        transaction: TRACE
         security:
-          web:
-            FilterChainProxy: DEBUG
+        web:
+          FilterChainProxy: DEBUG
       orm:
         jpa:
-          JpaTransactionManager: TRACE # JPA 트랜잭션 매니저 상세 로그
+          JpaTransactionManager: TRACE
       hibernate:
-        SQL: DEBUG # 실행되는 SQL 쿼리 로그 (PreparedStatement 파라미터 제외)
+        SQL: DEBUG
         type:
           descriptor:
             sql:
-              BasicBinder: TRACE # PreparedStatement 파라미터 값 로그 (매우 상세함)
+              BasicBinder: TRACE
         resource:
           transaction:
             backend:
               jdbc:
                 internal:
-                  JdbcResourceLocalTransactionCoordinatorImpl: TRACE # JDBC 트랜잭션 코디네이터 상세 로그
+                  JdbcResourceLocalTransactionCoordinatorImpl: TRACE

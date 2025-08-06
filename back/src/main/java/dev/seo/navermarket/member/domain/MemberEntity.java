@@ -1,5 +1,6 @@
 package dev.seo.navermarket.member.domain;
 
+import java.math.BigDecimal;
 import java.time.LocalDate;
 import java.time.LocalDateTime;
 
@@ -46,6 +47,12 @@ public class MemberEntity {
 
     @Column(name = "user_pwd", nullable = false, length = 255)
     private String userPwd;
+    
+    @Column(name = "user_name", nullable = false, length = 100)
+    private String userName;
+    
+    @Column(name = "nickname", length = 50)
+    private String nickname;
 
     @Column(name = "email", nullable = false, unique = true, length = 100)
     private String email;
@@ -53,46 +60,44 @@ public class MemberEntity {
     @Column(name = "phone", nullable = false, length = 20)
     private String phone;
 
-    @Column(name = "user_name", nullable = false, length = 100)
-    private String userName;
-
-    @Column(name = "nickname", length = 50)
-    private String nickname;
-
     @Column(name = "date_of_birth", nullable = false)
     private LocalDate dateOfBirth;
-
+    
     @Enumerated(EnumType.STRING)
     @Column(name = "gender", nullable = false, length = 10)
     private Gender gender;
-
+    
+    @Column(name = "zonecode", nullable =  false)
+    private String zonecode;
+    
     @Column(name = "address", nullable = false, length = 255)
     private String address;
-
+    
     @Column(name = "address_detail", nullable = false, length = 255)
     private String addressDetail;
+    
+    @Column(name = "preferred_trade_area")
+    private String preferredTradeArea;
+
+    @Column(name = "profile_image_url", length = 255)
+    private String profileImageUrl;
 
     @CreatedDate
     @Column(name = "join_date", updatable = false)
     private LocalDateTime joinDate;
-
-    @Column(name = "last_login")
-    private LocalDateTime lastLogin;
-
+    
+    @Enumerated(EnumType.STRING)
+    @Column(name = "role", nullable = false, length = 20)
+    @Builder.Default
+    private Role role = Role.USER;
+    
     @Enumerated(EnumType.STRING)
     @Column(name = "status", nullable = false, length = 20)
     @Builder.Default // Lombok @Builder를 사용하여 기본값을 설정할 때 사용합니다.
     private MemberStatus status = MemberStatus.ACTIVE;
 
-    @Column(name = "profile_image_url", length = 255)
-    private String profileImageUrl;
-
-    @Column(name = "user_pwd_changed_at")
-    private LocalDateTime userPwdChangedAt;
-
-    @Column(name = "reputation_score", nullable = false, precision = 4, scale = 1)
-    @Builder.Default
-    private Double reputationScore = 36.5; // 기본값 36.5
+    @Column(name = "last_login")
+    private LocalDateTime lastLogin;
 
     @Column(name = "items_sold_count", nullable = false)
     @Builder.Default
@@ -101,18 +106,17 @@ public class MemberEntity {
     @Column(name = "items_bought_count", nullable = false)
     @Builder.Default
     private Integer itemsBoughtCount = 0;
+    
+    @Column(name = "reputation_score", nullable = false, precision = 4, scale = 1)
+    @Builder.Default
+    private BigDecimal reputationScore = new BigDecimal("36.5"); // 기본값 36.5
 
     @Column(name = "is_verified_user", nullable = false)
     @Builder.Default
     private Boolean isVerifiedUser = false;
-
-    @Enumerated(EnumType.STRING)
-    @Column(name = "role", nullable = false, length = 20)
-    @Builder.Default
-    private Role role = Role.USER;
     
-    @Column(name = "preferred_trade_area")
-    private String preferredTradeArea;
+    @Column(name = "user_pwd_changed_at")
+    private LocalDateTime userPwdChangedAt;    
 	
 	@PrePersist
     public void prePersist() {
@@ -125,11 +129,12 @@ public class MemberEntity {
     }
 	
 	// 회원 정보 업데이트
-	public void updateMember(String email, String phone, String userName, String nickname, String address, String addressDetail) {
+	public void updateMember(String userName, String nickname, String email, String phone, String zonecode, String address, String addressDetail) {
+		this.userName = userName;
+		this.nickname = nickname;
         this.email = email;
         this.phone = phone;
-        this.userName = userName;
-        this.nickname = nickname;
+        this.zonecode = zonecode;
         this.address = address;
         this.addressDetail = addressDetail;
     }
@@ -141,13 +146,14 @@ public class MemberEntity {
     }
 
     // 매너 온도 업데이트 메서드 추가
-    public void updateReputationScore(Double changeAmount) {
-        if (this.reputationScore == null) {
-            this.reputationScore = 0.0; // 초기화
-        }
-        this.reputationScore += changeAmount;
+    public void changeReputationScore(BigDecimal changeAmount) {
+    	this.reputationScore = this.reputationScore.add(changeAmount);
         // 매너 온도 상한/하한 설정 (예: 0.0 ~ 100.0)
-        this.reputationScore = Math.max(0.0, Math.min(100.0, this.reputationScore));
+    	if (this.reputationScore.compareTo(BigDecimal.ZERO) < 0) {
+    	      this.reputationScore = BigDecimal.ZERO;
+    	    } else if (this.reputationScore.compareTo(new BigDecimal("100.0")) > 0) {
+    	      this.reputationScore = new BigDecimal("100.0");
+    	    }
     }
 
     // 판매/구매 카운트 증가 메서드 추가

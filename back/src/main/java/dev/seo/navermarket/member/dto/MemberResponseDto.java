@@ -5,6 +5,7 @@ import lombok.Getter;
 import lombok.Setter;
 import lombok.ToString;
 
+import java.math.BigDecimal;
 import java.time.LocalDate;
 import java.time.LocalDateTime;
 
@@ -29,14 +30,15 @@ public class MemberResponseDto {
     private String phone;
     private LocalDate dateOfBirth;
     private String gender;          // 성별 (ENUM 값을 String으로)
-    private LocalDateTime joinDate;
+    private String zonecode;
     private String address;         // 주소 (시/군/구까지)
     private String addressDetail;   // 상세 주소 (읍/면/동 이하 상세 주소)
+    private String preferredTradeArea; // 선호 거래 지역 이름
     private String profileImageUrl;
-    private Double reputationScore;
+    private LocalDateTime joinDate;
+    private BigDecimal reputationScore;
     private Integer itemsSoldCount;
     private Integer itemsBoughtCount;
-    private String preferredTradeArea; // 선호 거래 지역 이름
     private Boolean isVerifiedUser; // 본인 인증 여부 (true/false)
 
     /**
@@ -54,14 +56,15 @@ public class MemberResponseDto {
                 .phone(memberEntity.getPhone())
                 .dateOfBirth(memberEntity.getDateOfBirth())
                 .gender(memberEntity.getGender().name()) // 직접 name 호출 => enum에 정의된 상수 자체의 String을 반환하는 메서드.
-                .joinDate(memberEntity.getJoinDate())
+                .zonecode(memberEntity.getZonecode())
                 .address(memberEntity.getAddress())
                 .addressDetail(memberEntity.getAddressDetail())
+                .preferredTradeArea(memberEntity.getPreferredTradeArea())
                 .profileImageUrl(memberEntity.getProfileImageUrl())
+                .joinDate(memberEntity.getJoinDate())
                 .reputationScore(memberEntity.getReputationScore())
                 .itemsSoldCount(memberEntity.getItemsSoldCount())
                 .itemsBoughtCount(memberEntity.getItemsBoughtCount())
-                .preferredTradeArea(memberEntity.getPreferredTradeArea())
                 .isVerifiedUser(memberEntity.getIsVerifiedUser())
                 .build();
     }
